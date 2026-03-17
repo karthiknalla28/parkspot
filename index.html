@@ -294,41 +294,79 @@
     }
 
     // ── Report a spot ──
+   // ── Report a spot ──
     async function report(type) {
       if (!selectedStreet) {
         showToast('Please click a street on the map or sidebar first!');
         return;
       }
 
-      var newSpots = selectedStreet.spots;
-      var newStatus;
+      // Disable buttons while saving
+      document.querySelector('.btn-free').disabled  = true;
+      document.querySelector('.btn-taken').disabled = true;
 
-      if (type === 'free') {
-        newSpots = newSpots + 1;
-      } else {
-        newSpots = Math.max(0, newSpots - 1);
+      try {
+        // Check if this street already exists in our database
+       var { data: existing } = await db
+          .from('streets')
+          .select('*')
+          .ilike('name', selectedStreet.name)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          // ── Street EXISTS → just update the spot count ──
+          var current  = existing[0];
+          var newSpots = type === 'free'
+            ? current.spots + 1
+            : Math.max(0, current.spots - 1);
+          var newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
+
+          await db
+            .from('streets')
+            .update({
+              spots:        newSpots,
+              status:       newStatus,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', current.id);
+
+          showToast(type === 'free' ? 'Spot reported as free!' : 'Spot marked as taken!');
+
+        } else {
+          // ── Street DOESN'T EXIST → create it automatically ──
+          var initialSpots  = type === 'free' ? 1 : 0;
+          var initialStatus = type === 'free' ? 'green' : 'red';
+
+          await db
+            .from('streets')
+            .insert({
+              name:         selectedStreet.name,
+              city:         selectedStreet.city || '',
+              lat:          selectedStreet.lat,
+              lng:          selectedStreet.lng,
+              spots:        initialSpots,
+              status:       initialStatus,
+              last_updated: new Date().toISOString()
+            });
+
+          showToast(
+            type === 'free'
+              ? 'New street added! Spot reported as free!'
+              : 'New street added! Marked as taken.'
+          );
+        }
+
+        // Reload streets from database so map updates
+        await loadStreets();
+
+      } catch (err) {
+        console.error(err);
+        showToast('Something went wrong. Please try again.');
+      } finally {
+        // Re-enable buttons
+        document.querySelector('.btn-free').disabled  = false;
+        document.querySelector('.btn-taken').disabled = false;
       }
-
-      if (newSpots === 0)       newStatus = 'red';
-      else if (newSpots <= 2)   newStatus = 'yellow';
-      else                      newStatus = 'green';
-
-      var { error } = await db
-        .from('streets')
-        .update({
-          spots: newSpots,
-          status: newStatus,
-          last_updated: new Date().toISOString()
-        })
-        .eq('id', selectedStreet.id);
-
-      if (error) {
-        showToast('Error saving. Please try again.');
-        return;
-      }
-
-      showToast(type === 'free' ? 'Spot reported as free!' : 'Spot marked as taken!');
-      await loadStreets();
     }
 
     // ── Autocomplete suggestions ──
@@ -379,6 +417,7 @@
           .bindPopup('<b>' + item.name + '</b><br><span style="color:#888;font-size:12px">No reports yet. Be the first!</span>')
           .openPopup();
         markers.push(t);
+        setSelectedStreet({ name: item.name, city: item.city || '', lat: item.lat, lng: item.lng, spots: 0 });
         buildList([{ name: item.name, city: item.city, spots: -1, lat: item.lat, lng: item.lng }]);
       }
     }
@@ -403,11 +442,12 @@
       clearTimeout(nominatimTimer);
       nominatimTimer = setTimeout(function() {
         var url = 'https://nominatim.openstreetmap.org/search?format=json'
-                + '&q=' + encodeURIComponent(query + ', Massachusetts')
+                + '&q=' + encodeURIComponent(query + ', United States')
                 + '&limit=5&addressdetails=1';
         fetch(url)
           .then(function(r) { return r.json(); })
           .then(function(data) {
+            var seen = [];
             var nom = data
               .filter(function(r) {
                 return r.class === 'highway' || r.addresstype === 'road' ||
@@ -416,11 +456,18 @@
               })
               .map(function(r) {
                 var sName = r.address.road || r.display_name.split(',')[0];
-                var city  = r.address.city || r.address.town || r.address.village || 'MA';
-                return { type:'search', name:sName, city:city,
-                  sub: city + ', Massachusetts', lat:parseFloat(r.lat), lng:parseFloat(r.lon) };
+                var city  = r.address.city || r.address.town || r.address.village || '';
+                var state = r.address.state || '';
+                return { type:'search', name:sName, city:city, state:state,
+                  sub: [city, state].filter(Boolean).join(', '),
+                  lat:parseFloat(r.lat), lng:parseFloat(r.lon) };
               })
               .filter(function(r) {
+                // Remove duplicates from Nominatim results
+                var key = r.name.toLowerCase() + '|' + r.city.toLowerCase();
+                if (seen.includes(key)) return false;
+                seen.push(key);
+                // Remove duplicates already shown from local matches
                 return !local.some(function(l) {
                   return l.name.toLowerCase() === r.name.toLowerCase() &&
                          l.city.toLowerCase() === r.city.toLowerCase();
