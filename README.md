@@ -72,10 +72,9 @@ Currently has seeded data for these streets:
 
 - [x] Phase 1 — Build the webpage and map
 - [x] Phase 2 — Smart search for any street in Greater Boston
-- [x] Phase 3 — Connect Firebase database for real-time community reports
-- [ ] Phase 4 — Auto-expire old reports (spots go stale after 20 mins)
-- [ ] Phase 5 — Mobile-friendly layout for use while sitting in your car
-- [ ] Phase 6 — Launch to Everett & Malden community (Nextdoor, Facebook groups)
+- [x] Phase 3 — Supabase database, community reporting, confidence scores & auto-expire
+- [ ] Phase 4 — Mobile-friendly layout for use while sitting in your car
+- [ ] Phase 5 — Launch to Everett & Malden community (Nextdoor, Facebook groups)
 
 ---
 
@@ -100,4 +99,4 @@ This is a personal learning project for now. Once Phase 3 (database) is complete
 
 ---
 
-*Last updated: Phase 2 complete — search + autocomplete live*
+*Last updated: Phase 3 complete — live database, community reporting, confidence scores, auto-expire*
