@@ -689,12 +689,25 @@
       if (query.length < 2) { hideSuggestions(); drawMarkers(streets); buildList(streets); return; }
 
       var local = streets.filter(function(s) {
-        return (s.name + ' ' + s.city).toLowerCase().includes(query.toLowerCase());
+        var fullName = (s.name || '') + ' ' + (s.city || '');
+        return fullName.toLowerCase().includes(query.toLowerCase());
       }).map(function(s) {
-        return { type:'known', name:s.name, city:s.city,
-          sub: s.city + ' · ' + (s.spots > 0 ? s.spots + ' spots open' : 'Full'),
-          status:s.status, spots:s.spots, lat:s.lat, lng:s.lng, id:s.id,
-          total_spots:s.total_spots, last_updated:s.last_updated };
+        var spotsText = s.status === 'expired' ? 'Expired'
+                      : s.spots > 0 ? s.spots + ' spots open' : 'Full';
+        return {
+          type:         'known',
+          name:         s.name,
+          city:         s.city || '',
+          sub:          (s.city || '') + ' · ' + spotsText,
+          status:       s.status,
+          spots:        s.spots,
+          lat:          s.lat,
+          lng:          s.lng,
+          id:           s.id,
+          total_spots:  s.total_spots,
+          last_updated: s.last_updated,
+          comment:      s.comment
+        };
       });
 
       showSuggestions(local.concat([
