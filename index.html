@@ -7,6 +7,7 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,10 +15,19 @@
 
     .topbar {
       background: #1a1a2e; color: white;
-      padding: 14px 20px; display: flex; align-items: center; gap: 16px;
+      padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
     }
     .topbar h1 { font-size: 20px; }
     .topbar p  { font-size: 13px; color: #aaa; }
+    .live-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #22c55e; font-weight: 500;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     .searchbar {
       background: #fff; padding: 12px 20px;
@@ -71,7 +81,6 @@
     .searchbar button:hover { background: #16a34a; }
 
     .main { display: flex; height: calc(100vh - 110px); }
-
     #map { flex: 1; }
 
     .sidebar {
@@ -89,15 +98,22 @@
     }
     .street-item:hover { background: #f9f9f9; }
     .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-    .dot.green  { background: #22c55e; }
-    .dot.yellow { background: #fbbf24; }
-    .dot.red    { background: #ef4444; }
+    .dot.green   { background: #22c55e; }
+    .dot.yellow  { background: #fbbf24; }
+    .dot.red     { background: #ef4444; }
     .dot.unknown { background: #94a3b8; }
     .street-name { font-size: 13px; font-weight: 500; }
     .street-info { font-size: 12px; color: #888; }
+    .street-time { font-size: 11px; color: #bbb; margin-top: 2px; }
 
     .report-area { padding: 14px 16px; border-top: 1px solid #eee; }
     .report-area p { font-size: 12px; color: #777; margin-bottom: 8px; }
+    .selected-street {
+      font-size: 12px; font-weight: 500; color: #1a1a2e;
+      background: #f0fdf4; border: 1px solid #86efac;
+      border-radius: 6px; padding: 6px 10px; margin-bottom: 8px;
+      display: none;
+    }
     .btn-free {
       width: 100%; padding: 9px; background: #dcfce7;
       color: #15803d; border: 1px solid #86efac;
@@ -111,6 +127,15 @@
     }
     .btn-free:hover  { background: #bbf7d0; }
     .btn-taken:hover { background: #fecaca; }
+    .btn-free:disabled, .btn-taken:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1a1a2e; color: white; padding: 10px 20px;
+      border-radius: 8px; font-size: 13px; z-index: 99999;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 
@@ -120,6 +145,10 @@
     <div>
       <h1>ParkSpot</h1>
       <p>Greater Boston, MA</p>
+    </div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <span id="live-status">Connecting...</span>
     </div>
   </div>
 
@@ -140,60 +169,84 @@
     <div id="map"></div>
     <div class="sidebar">
       <h2>Nearby streets</h2>
-      <div class="street-list" id="street-list"></div>
+      <div class="street-list" id="street-list">
+        <p style="padding:16px;color:#888;font-size:13px;">Loading streets...</p>
+      </div>
       <div class="report-area">
         <p>See a free spot? Report it!</p>
+        <div class="selected-street" id="selected-street">No street selected</div>
         <button class="btn-free"  onclick="report('free')">+ I just freed a spot</button>
         <button class="btn-taken" onclick="report('taken')">Spot just got taken</button>
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
+    // ── Supabase setup ──
+    const SUPABASE_URL = 'https://tvuwlxmgpauubuitqgbd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_Z70iI8GKpj_2PU5T8BiaOQ_DvGXBg43';
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ── Map setup ──
     var map = L.map('map').setView([42.3801, -71.0589], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    var streets = [
-      { name:"Ferry St",       city:"Everett",    status:"green",  spots:8, lat:42.4090, lng:-71.0530 },
-      { name:"Elm St",         city:"Everett",    status:"green",  spots:5, lat:42.4075, lng:-71.0520 },
-      { name:"Broadway",       city:"Everett",    status:"yellow", spots:2, lat:42.4100, lng:-71.0555 },
-      { name:"Nichols St",     city:"Everett",    status:"red",    spots:0, lat:42.4065, lng:-71.0545 },
-      { name:"Newbury St",     city:"Boston",     status:"red",    spots:0, lat:42.3494, lng:-71.0838 },
-      { name:"Hanover St",     city:"Boston",     status:"yellow", spots:3, lat:42.3637, lng:-71.0545 },
-      { name:"Mass Ave",       city:"Cambridge",  status:"green",  spots:6, lat:42.3656, lng:-71.1045 },
-      { name:"Broadway",       city:"Somerville", status:"green",  spots:4, lat:42.3876, lng:-71.0995 },
-      { name:"Washington St",  city:"Malden",     status:"green",  spots:5, lat:42.4265, lng:-71.0662 },
-      { name:"Central Ave",    city:"Malden",     status:"yellow", spots:2, lat:42.4251, lng:-71.0701 },
-    ];
-
-    var colors  = { green:"#22c55e", yellow:"#fbbf24", red:"#ef4444" };
+    var colors  = { green: '#22c55e', yellow: '#fbbf24', red: '#ef4444' };
     var markers = [];
+    var streets = [];
+    var selectedStreet = null;
     var nominatimTimer = null;
     var activeIndex = -1;
 
+    // ── Toast notification ──
+    function showToast(msg, duration) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, duration || 2500);
+    }
+
+    // ── Format time ago ──
+    function timeAgo(timestamp) {
+      if (!timestamp) return '';
+      var diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
+      if (diff < 60)  return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
+      return Math.floor(diff / 86400) + ' days ago';
+    }
+
+    // ── Draw markers on map ──
     function drawMarkers(list) {
       markers.forEach(function(m) { map.removeLayer(m); });
       markers = [];
       list.forEach(function(s) {
         var circle = L.circleMarker([s.lat, s.lng], {
-          radius: 14, fillColor: colors[s.status] || "#94a3b8",
-          color: "#fff", weight: 2, fillOpacity: 0.9
+          radius: 14,
+          fillColor: colors[s.status] || '#94a3b8',
+          color: '#fff', weight: 2, fillOpacity: 0.9
         }).addTo(map);
         circle.bindPopup(
-          "<b>" + s.name + (s.city ? ", " + s.city : "") + "</b><br>" +
-          (s.spots > 0 ? s.spots + " spots available" : "No spots — full!")
+          '<b>' + s.name + (s.city ? ', ' + s.city : '') + '</b><br>' +
+          (s.spots > 0 ? s.spots + ' spots available' : 'No spots — full!') +
+          (s.last_updated ? '<br><span style="color:#888;font-size:11px">Updated ' + timeAgo(s.last_updated) + '</span>' : '')
         );
+        circle.on('click', function() { setSelectedStreet(s); });
         markers.push(circle);
       });
     }
 
+    // ── Build sidebar list ──
     function buildList(list) {
       var el = document.getElementById('street-list');
       el.innerHTML = '';
       if (list.length === 0) {
-        el.innerHTML = '<p style="padding:16px;color:#888;font-size:13px;">No results found.</p>';
+        el.innerHTML = '<p style="padding:16px;color:#888;font-size:13px;">No streets found.</p>';
         return;
       }
       list.forEach(function(s) {
@@ -206,15 +259,79 @@
             '<div class="street-info">' +
               (s.spots > 0 ? s.spots + ' spots open' : s.spots === 0 ? 'Full' : 'No reports yet') +
             '</div>' +
+            (s.last_updated ? '<div class="street-time">' + timeAgo(s.last_updated) + '</div>' : '') +
           '</div>';
-        item.onclick = function() { map.setView([s.lat, s.lng], 17); };
+        item.onclick = function() {
+          map.setView([s.lat, s.lng], 17);
+          setSelectedStreet(s);
+        };
         el.appendChild(item);
       });
     }
 
-    drawMarkers(streets);
-    buildList(streets);
+    // ── Set selected street for reporting ──
+    function setSelectedStreet(s) {
+      selectedStreet = s;
+      var el = document.getElementById('selected-street');
+      el.textContent = 'Reporting for: ' + s.name + (s.city ? ', ' + s.city : '');
+      el.style.display = 'block';
+    }
 
+    // ── Load streets from Supabase ──
+    async function loadStreets() {
+      var { data, error } = await db.from('streets').select('*').order('name');
+      if (error) {
+        console.error(error);
+        document.getElementById('live-status').textContent = 'Connection error';
+        document.getElementById('street-list').innerHTML =
+          '<p style="padding:16px;color:#e44;font-size:13px;">Could not load streets. Check your connection.</p>';
+        return;
+      }
+      streets = data;
+      document.getElementById('live-status').textContent = 'Live';
+      drawMarkers(streets);
+      buildList(streets);
+    }
+
+    // ── Report a spot ──
+    async function report(type) {
+      if (!selectedStreet) {
+        showToast('Please click a street on the map or sidebar first!');
+        return;
+      }
+
+      var newSpots = selectedStreet.spots;
+      var newStatus;
+
+      if (type === 'free') {
+        newSpots = newSpots + 1;
+      } else {
+        newSpots = Math.max(0, newSpots - 1);
+      }
+
+      if (newSpots === 0)       newStatus = 'red';
+      else if (newSpots <= 2)   newStatus = 'yellow';
+      else                      newStatus = 'green';
+
+      var { error } = await db
+        .from('streets')
+        .update({
+          spots: newSpots,
+          status: newStatus,
+          last_updated: new Date().toISOString()
+        })
+        .eq('id', selectedStreet.id);
+
+      if (error) {
+        showToast('Error saving. Please try again.');
+        return;
+      }
+
+      showToast(type === 'free' ? 'Spot reported as free!' : 'Spot marked as taken!');
+      await loadStreets();
+    }
+
+    // ── Autocomplete suggestions ──
     function showSuggestions(items) {
       var box = document.getElementById('suggestions');
       box.innerHTML = '';
@@ -256,12 +373,13 @@
       map.setView([item.lat, item.lng], 17);
       if (item.type === 'known') {
         buildList([item]);
+        setSelectedStreet(item);
       } else {
         var t = L.marker([item.lat, item.lng]).addTo(map)
           .bindPopup('<b>' + item.name + '</b><br><span style="color:#888;font-size:12px">No reports yet. Be the first!</span>')
           .openPopup();
         markers.push(t);
-        buildList([{ name:item.name, city:item.city, spots:-1, lat:item.lat, lng:item.lng }]);
+        buildList([{ name: item.name, city: item.city, spots: -1, lat: item.lat, lng: item.lng }]);
       }
     }
 
@@ -274,7 +392,8 @@
       }).map(function(s) {
         return { type:'known', name:s.name, city:s.city,
           sub: s.city + ' · ' + (s.spots > 0 ? s.spots + ' spots open' : 'Full'),
-          status:s.status, spots:s.spots, lat:s.lat, lng:s.lng };
+          status:s.status, spots:s.spots, lat:s.lat, lng:s.lng, id:s.id,
+          last_updated: s.last_updated };
       });
 
       showSuggestions(local.concat([
@@ -340,19 +459,19 @@
         return (s.name + ' ' + s.city).toLowerCase().includes(query.toLowerCase());
       });
       if (local) { selectSuggestion(Object.assign({ type:'known' }, local)); return; }
-      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query + ', Massachusetts') + '&limit=1')
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q='
+        + encodeURIComponent(query + ', Massachusetts') + '&limit=1')
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data[0]) {
-            selectSuggestion({ type:'search', name:query, city:'', lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon) });
-          } else { alert('Street not found. Try "Ferry St, Everett" or "Newbury St, Boston"'); }
+            selectSuggestion({ type:'search', name:query, city:'',
+              lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon) });
+          } else { showToast('Street not found. Try "Ferry St, Everett"'); }
         });
     }
 
-    function report(type) {
-      alert(type === 'free' ? 'Thanks! Marked as available. (Live database coming soon!)'
-                            : 'Thanks! Marked as taken. (Live database coming soon!)');
-    }
+    // ── Start the app ──
+    loadStreets();
   </script>
 
 </body>
