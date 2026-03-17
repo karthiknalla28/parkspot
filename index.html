@@ -15,7 +15,8 @@
 
     .topbar {
       background: #1a1a2e; color: white;
-      padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; display: flex;
+      align-items: center; justify-content: space-between;
     }
     .topbar h1 { font-size: 20px; }
     .topbar p  { font-size: 13px; color: #aaa; }
@@ -24,8 +25,8 @@
       font-size: 12px; color: #22c55e; font-weight: 500;
     }
     .live-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
-      animation: pulse 1.5s ease-in-out infinite;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; animation: pulse 1.5s ease-in-out infinite;
     }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
@@ -94,26 +95,90 @@
     .street-list { flex: 1; overflow-y: auto; }
     .street-item {
       padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
-      cursor: pointer; display: flex; align-items: center; gap: 10px;
+      cursor: pointer; display: flex; align-items: flex-start; gap: 10px;
     }
     .street-item:hover { background: #f9f9f9; }
-    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
     .dot.green   { background: #22c55e; }
     .dot.yellow  { background: #fbbf24; }
     .dot.red     { background: #ef4444; }
+    .dot.expired { background: #94a3b8; }
     .dot.unknown { background: #94a3b8; }
     .street-name { font-size: 13px; font-weight: 500; }
-    .street-info { font-size: 12px; color: #888; }
+    .street-info { font-size: 12px; color: #888; margin-top: 2px; }
     .street-time { font-size: 11px; color: #bbb; margin-top: 2px; }
 
-    .report-area { padding: 14px 16px; border-top: 1px solid #eee; }
-    .report-area p { font-size: 12px; color: #777; margin-bottom: 8px; }
+    .freshness-bar {
+      height: 3px; border-radius: 2px;
+      background: #f0f0f0; margin-top: 4px; overflow: hidden;
+    }
+    .freshness-fill {
+      height: 100%; border-radius: 2px; transition: width 1s linear;
+    }
+    .freshness-fill.fresh   { background: #22c55e; }
+    .freshness-fill.aging   { background: #fbbf24; }
+    .freshness-fill.stale   { background: #f97316; }
+    .freshness-fill.expired { background: #94a3b8; width: 0% !important; }
+
+    .confidence-bar {
+      height: 4px; border-radius: 2px;
+      background: #f0f0f0; margin-top: 4px; overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%; border-radius: 2px;
+      background: #3b82f6; transition: width 0.4s;
+    }
+    .confidence-label {
+      font-size: 11px; color: #888; margin-top: 4px;
+      display: flex; justify-content: space-between;
+    }
+    .comment-bubble {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 7px 10px;
+      font-size: 12px; color: #555; margin-top: 6px;
+      font-style: italic;
+    }
+
+    .report-area {
+      padding: 14px 16px; border-top: 1px solid #eee;
+      overflow-y: auto; max-height: 360px;
+    }
+    .report-area > p { font-size: 12px; color: #777; margin-bottom: 8px; }
     .selected-street {
       font-size: 12px; font-weight: 500; color: #1a1a2e;
       background: #f0fdf4; border: 1px solid #86efac;
       border-radius: 6px; padding: 6px 10px; margin-bottom: 8px;
       display: none;
     }
+
+    .capacity-row {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #555; margin-bottom: 4px;
+    }
+    .capacity-bar-wrap {
+      height: 6px; background: #f0f0f0;
+      border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+    }
+    .capacity-bar-fill {
+      height: 100%; border-radius: 3px; transition: width 0.4s, background 0.4s;
+    }
+
+    .adjuster-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
+    .adj-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1px solid #ddd; background: #f9f9f9;
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .adj-btn:hover { background: #f0f0f0; }
+    .adj-val {
+      font-size: 18px; font-weight: 500;
+      min-width: 24px; text-align: center;
+    }
+    .adj-label { font-size: 11px; color: #aaa; }
+
     .btn-free {
       width: 100%; padding: 9px; background: #dcfce7;
       color: #15803d; border: 1px solid #86efac;
@@ -123,17 +188,27 @@
     .btn-taken {
       width: 100%; padding: 9px; background: #fee2e2;
       color: #b91c1c; border: 1px solid #fca5a5;
-      border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; margin-bottom: 6px;
     }
     .btn-free:hover  { background: #bbf7d0; }
     .btn-taken:hover { background: #fecaca; }
     .btn-free:disabled, .btn-taken:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-confirm {
+      width: 100%; padding: 9px; background: #eff6ff;
+      color: #1d4ed8; border: 1px solid #93c5fd;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; display: none;
+    }
+    .btn-confirm:hover { background: #dbeafe; }
 
     .toast {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%);
       background: #1a1a2e; color: white; padding: 10px 20px;
       border-radius: 8px; font-size: 13px; z-index: 99999;
       opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      white-space: nowrap;
     }
     .toast.show { opacity: 1; }
   </style>
@@ -174,9 +249,54 @@
       </div>
       <div class="report-area">
         <p>See a free spot? Report it!</p>
-        <div class="selected-street" id="selected-street">No street selected</div>
+
+        <div class="selected-street" id="selected-street"></div>
+
+        <!-- Capacity bar -->
+        <div id="capacity-display" style="display:none; margin-bottom:10px;">
+          <div class="capacity-row">
+            <span id="capacity-label">0 of 10 spots free</span>
+            <span id="capacity-percent">0%</span>
+          </div>
+          <div class="capacity-bar-wrap">
+            <div id="capacity-bar" class="capacity-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- Total spots adjuster -->
+        <div id="total-spots-adjuster" style="display:none; margin-bottom:10px;">
+          <p style="font-size:11px;color:#aaa;margin-bottom:4px;">Total spots on this street:</p>
+          <div class="adjuster-row">
+            <button class="adj-btn" onclick="adjustTotal(-1)">−</button>
+            <span class="adj-val" id="total-spots-display">10</span>
+            <button class="adj-btn" onclick="adjustTotal(1)">+</button>
+            <span class="adj-label">tap +/− to correct</span>
+          </div>
+        </div>
+
+        <!-- How many spots do you see -->
+        <div id="spot-count-adjuster" style="display:none; margin-bottom:10px;">
+          <p style="font-size:11px;color:#777;margin-bottom:4px;">How many spots do you see free?</p>
+          <div class="adjuster-row">
+            <button class="adj-btn" onclick="adjustReportSpots(-1)">−</button>
+            <span class="adj-val" id="report-spots-display">1</span>
+            <button class="adj-btn" onclick="adjustReportSpots(1)">+</button>
+            <span class="adj-label">spots visible</span>
+          </div>
+        </div>
+
+        <!-- Comment box -->
+        <div id="comment-box" style="display:none; margin-bottom:10px;">
+          <textarea id="report-comment"
+            placeholder='Optional: e.g. "2 spots near the corner"'
+            style="width:100%;padding:8px 10px;border:1px solid #ddd;
+            border-radius:8px;font-size:12px;font-family:Arial;
+            resize:none;height:56px;"></textarea>
+        </div>
+
         <button class="btn-free"  onclick="report('free')">+ I just freed a spot</button>
         <button class="btn-taken" onclick="report('taken')">Spot just got taken</button>
+        <button class="btn-confirm" id="btn-confirm" onclick="confirmReport()">Still accurate? Confirm it</button>
       </div>
     </div>
   </div>
@@ -196,14 +316,21 @@
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    var colors  = { green: '#22c55e', yellow: '#fbbf24', red: '#ef4444' };
-    var markers = [];
-    var streets = [];
-    var selectedStreet = null;
-    var nominatimTimer = null;
-    var activeIndex = -1;
+    var colors = {
+      green:   '#22c55e',
+      yellow:  '#fbbf24',
+      red:     '#ef4444',
+      expired: '#94a3b8'
+    };
 
-    // ── Toast notification ──
+    var markers        = [];
+    var streets        = [];
+    var selectedStreet = null;
+    var reportSpots    = 1;
+    var nominatimTimer = null;
+    var activeIndex    = -1;
+
+    // ── Toast ──
     function showToast(msg, duration) {
       var t = document.getElementById('toast');
       t.textContent = msg;
@@ -211,31 +338,69 @@
       setTimeout(function() { t.classList.remove('show'); }, duration || 2500);
     }
 
-    // ── Format time ago ──
+    // ── Time ago ──
     function timeAgo(timestamp) {
       if (!timestamp) return '';
       var diff = Math.floor((new Date() - new Date(timestamp)) / 1000);
-      if (diff < 60)  return 'just now';
+      if (diff < 60)   return 'just now';
       if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
       if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
       return Math.floor(diff / 86400) + ' days ago';
     }
 
-    // ── Draw markers on map ──
+    // ── Expiry helpers ──
+    function isExpired(timestamp) {
+      if (!timestamp) return true;
+      return (new Date() - new Date(timestamp)) / 1000 / 60 > 20;
+    }
+
+    function getFreshness(timestamp) {
+      if (!timestamp) return 'expired';
+      var diff = (new Date() - new Date(timestamp)) / 1000 / 60;
+      if (diff <= 5)  return 'fresh';
+      if (diff <= 15) return 'aging';
+      if (diff <= 20) return 'stale';
+      return 'expired';
+    }
+
+    function freshnessWidth(timestamp) {
+      if (!timestamp) return 0;
+      var diff = (new Date() - new Date(timestamp)) / 1000 / 60;
+      return Math.max(0, Math.round(100 - (diff / 20 * 100)));
+    }
+
+    // ── Draw markers ──
     function drawMarkers(list) {
       markers.forEach(function(m) { map.removeLayer(m); });
       markers = [];
       list.forEach(function(s) {
         var circle = L.circleMarker([s.lat, s.lng], {
-          radius: 14,
-          fillColor: colors[s.status] || '#94a3b8',
-          color: '#fff', weight: 2, fillOpacity: 0.9
+          radius:      14,
+          fillColor:   colors[s.status] || '#94a3b8',
+          color:       '#fff',
+          weight:      2,
+          opacity:     s.status === 'expired' ? 0.4 : 1,
+          fillOpacity: s.status === 'expired' ? 0.3 : 0.9
         }).addTo(map);
+
+        var total = s.total_spots || 10;
+        var free  = s.spots || 0;
         circle.bindPopup(
           '<b>' + s.name + (s.city ? ', ' + s.city : '') + '</b><br>' +
-          (s.spots > 0 ? s.spots + ' spots available' : 'No spots — full!') +
-          (s.last_updated ? '<br><span style="color:#888;font-size:11px">Updated ' + timeAgo(s.last_updated) + '</span>' : '')
+          (s.status === 'expired'
+            ? '<span style="color:#94a3b8">Expired — no fresh data</span>'
+            : '<b style="color:' + (colors[s.status] || '#94a3b8') + '">' + free + ' of ' + total + ' spots free</b>') +
+          (s.confidence
+            ? '<br><span style="color:#3b82f6;font-size:11px">Confidence: ' + s.confidence + '/10</span>'
+            : '') +
+          (s.comment
+            ? '<br><i style="color:#888;font-size:11px">"' + s.comment + '"</i>'
+            : '') +
+          (s.last_updated
+            ? '<br><span style="color:#aaa;font-size:11px">Updated ' + timeAgo(s.last_updated) + '</span>'
+            : '')
         );
+
         circle.on('click', function() { setSelectedStreet(s); });
         markers.push(circle);
       });
@@ -252,14 +417,29 @@
       list.forEach(function(s) {
         var item = document.createElement('div');
         item.className = 'street-item';
+        var total = s.total_spots || 10;
         item.innerHTML =
           '<div class="dot ' + (s.status || 'unknown') + '"></div>' +
-          '<div>' +
+          '<div style="flex:1">' +
             '<div class="street-name">' + s.name + (s.city ? ', ' + s.city : '') + '</div>' +
             '<div class="street-info">' +
-              (s.spots > 0 ? s.spots + ' spots open' : s.spots === 0 ? 'Full' : 'No reports yet') +
+              (s.status === 'expired'
+                ? 'Expired — no fresh data'
+                : s.spots > 0
+                  ? s.spots + ' of ' + total + ' spots free'
+                  : s.spots === 0 ? 'Full' : 'No reports yet') +
             '</div>' +
-            (s.last_updated ? '<div class="street-time">' + timeAgo(s.last_updated) + '</div>' : '') +
+            (s.last_updated
+              ? '<div class="street-time">' + timeAgo(s.last_updated) + '</div>'
+              : '') +
+            '<div class="freshness-bar"><div class="freshness-fill ' + getFreshness(s.last_updated) + '" style="width:' + freshnessWidth(s.last_updated) + '%"></div></div>' +
+            (s.confidence && s.status !== 'expired'
+              ? '<div class="confidence-label"><span>Confidence</span><span>' + s.confidence + '/10</span></div>' +
+                '<div class="confidence-bar"><div class="confidence-fill" style="width:' + (s.confidence * 10) + '%"></div></div>'
+              : '') +
+            (s.comment
+              ? '<div class="comment-bubble">"' + s.comment + '"</div>'
+              : '') +
           '</div>';
         item.onclick = function() {
           map.setView([s.lat, s.lng], 17);
@@ -269,12 +449,54 @@
       });
     }
 
-    // ── Set selected street for reporting ──
+    // ── Set selected street ──
     function setSelectedStreet(s) {
       selectedStreet = s;
+
       var el = document.getElementById('selected-street');
       el.textContent = 'Reporting for: ' + s.name + (s.city ? ', ' + s.city : '');
       el.style.display = 'block';
+
+      var total    = s.total_spots || 10;
+      var free     = s.spots || 0;
+      var pct      = Math.round((free / total) * 100);
+      var barColor = pct === 0 ? '#ef4444' : pct <= 30 ? '#fbbf24' : '#22c55e';
+
+      document.getElementById('capacity-display').style.display = 'block';
+      document.getElementById('capacity-label').textContent     = free + ' of ' + total + ' spots free';
+      document.getElementById('capacity-percent').textContent   = pct + '%';
+      document.getElementById('capacity-bar').style.width       = pct + '%';
+      document.getElementById('capacity-bar').style.background  = barColor;
+
+      document.getElementById('total-spots-adjuster').style.display = 'block';
+      document.getElementById('total-spots-display').textContent    = total;
+
+      reportSpots = Math.max(1, free);
+      document.getElementById('report-spots-display').textContent   = reportSpots;
+      document.getElementById('spot-count-adjuster').style.display  = 'block';
+      document.getElementById('comment-box').style.display          = 'block';
+      document.getElementById('report-comment').value               = s.comment || '';
+
+      var confirmBtn = document.getElementById('btn-confirm');
+      confirmBtn.style.display = (s.last_updated && !isExpired(s.last_updated)) ? 'block' : 'none';
+    }
+
+    function adjustReportSpots(change) {
+      reportSpots = Math.max(0, reportSpots + change);
+      document.getElementById('report-spots-display').textContent = reportSpots;
+    }
+
+    async function adjustTotal(change) {
+      if (!selectedStreet) return;
+      var current  = parseInt(document.getElementById('total-spots-display').textContent);
+      var newTotal = Math.max(1, current + change);
+      document.getElementById('total-spots-display').textContent = newTotal;
+      if (selectedStreet.id) {
+        await db.from('streets').update({ total_spots: newTotal }).eq('id', selectedStreet.id);
+      }
+      selectedStreet.total_spots = newTotal;
+      setSelectedStreet(selectedStreet);
+      showToast('Total spots updated to ' + newTotal);
     }
 
     // ── Load streets from Supabase ──
@@ -287,6 +509,24 @@
           '<p style="padding:16px;color:#e44;font-size:13px;">Could not load streets. Check your connection.</p>';
         return;
       }
+
+      // Auto-expire streets older than 20 minutes
+      var expiredIds = data
+        .filter(function(s) { return isExpired(s.last_updated) && s.status !== 'expired'; })
+        .map(function(s) { return s.id; });
+
+      if (expiredIds.length > 0) {
+        await db.from('streets')
+          .update({ spots: 0, status: 'expired', last_updated: null })
+          .in('id', expiredIds);
+        data = data.map(function(s) {
+          if (expiredIds.includes(s.id)) {
+            return Object.assign({}, s, { spots: 0, status: 'expired', last_updated: null });
+          }
+          return s;
+        });
+      }
+
       streets = data;
       document.getElementById('live-status').textContent = 'Live';
       drawMarkers(streets);
@@ -294,82 +534,104 @@
     }
 
     // ── Report a spot ──
-   // ── Report a spot ──
     async function report(type) {
       if (!selectedStreet) {
         showToast('Please click a street on the map or sidebar first!');
         return;
       }
 
-      // Disable buttons while saving
       document.querySelector('.btn-free').disabled  = true;
       document.querySelector('.btn-taken').disabled = true;
 
+      var comment = document.getElementById('report-comment').value.trim();
+
       try {
-        // Check if this street already exists in our database
-       var { data: existing } = await db
-          .from('streets')
-          .select('*')
+        var { data: existing } = await db
+          .from('streets').select('*')
           .ilike('name', selectedStreet.name)
           .limit(1);
 
         if (existing && existing.length > 0) {
-          // ── Street EXISTS → just update the spot count ──
-          var current  = existing[0];
-          var newSpots = type === 'free'
-            ? current.spots + 1
-            : Math.max(0, current.spots - 1);
-          var newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
+          var current      = existing[0];
+          var newSpots     = type === 'free' ? reportSpots : Math.max(0, current.spots - 1);
+          var newStatus    = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
+          var newConfidence = Math.min(10, (current.confidence || 1) + 1);
 
-          await db
-            .from('streets')
-            .update({
-              spots:        newSpots,
-              status:       newStatus,
-              last_updated: new Date().toISOString()
-            })
-            .eq('id', current.id);
+          await db.from('streets').update({
+            spots:         newSpots,
+            status:        newStatus,
+            confidence:    newConfidence,
+            confirmations: 0,
+            comment:       comment || current.comment,
+            last_updated:  new Date().toISOString()
+          }).eq('id', current.id);
 
           showToast(type === 'free' ? 'Spot reported as free!' : 'Spot marked as taken!');
 
         } else {
-          // ── Street DOESN'T EXIST → create it automatically ──
-          var initialSpots  = type === 'free' ? 1 : 0;
+          var initialSpots  = type === 'free' ? reportSpots : 0;
           var initialStatus = type === 'free' ? 'green' : 'red';
 
-          await db
-            .from('streets')
-            .insert({
-              name:         selectedStreet.name,
-              city:         selectedStreet.city || '',
-              lat:          selectedStreet.lat,
-              lng:          selectedStreet.lng,
-              spots:        initialSpots,
-              status:       initialStatus,
-              last_updated: new Date().toISOString()
-            });
+          await db.from('streets').insert({
+            name:          selectedStreet.name,
+            city:          selectedStreet.city || '',
+            lat:           selectedStreet.lat,
+            lng:           selectedStreet.lng,
+            spots:         initialSpots,
+            total_spots:   10,
+            status:        initialStatus,
+            confidence:    1,
+            confirmations: 0,
+            comment:       comment,
+            last_updated:  new Date().toISOString()
+          });
 
-          showToast(
-            type === 'free'
-              ? 'New street added! Spot reported as free!'
-              : 'New street added! Marked as taken.'
-          );
+          showToast(type === 'free'
+            ? 'New street added! Spot reported as free!'
+            : 'New street added! Marked as taken.');
         }
 
-        // Reload streets from database so map updates
         await loadStreets();
 
-      } catch (err) {
+      } catch(err) {
         console.error(err);
         showToast('Something went wrong. Please try again.');
       } finally {
-        // Re-enable buttons
         document.querySelector('.btn-free').disabled  = false;
         document.querySelector('.btn-taken').disabled = false;
       }
     }
 
-    // ── Autocomplete suggestions ──
+    // ── Confirm a report is still accurate ──
+    async function confirmReport() {
+      if (!selectedStreet || !selectedStreet.id) {
+        showToast('Please select a street first!');
+        return;
+      }
+
+      var { data: existing } = await db
+        .from('streets').select('*')
+        .eq('id', selectedStreet.id).limit(1);
+
+      if (!existing || existing.length === 0) return;
+
+      var current      = existing[0];
+      var newConfirm   = (current.confirmations || 0) + 1;
+      var newConfidence = (newConfirm % 3 === 0)
+        ? Math.min(10, (current.confidence || 1) + 1)
+        : current.confidence;
+
+      await db.from('streets').update({
+        confirmations: newConfirm,
+        confidence:    newConfidence,
+        last_updated:  new Date().toISOString()
+      }).eq('id', selectedStreet.id);
+
+      showToast('Thanks for confirming! Confidence score went up.');
+      await loadStreets();
+    }
+
+    // ── Autocomplete ──
     function showSuggestions(items) {
       var box = document.getElementById('suggestions');
       box.innerHTML = '';
@@ -392,7 +654,7 @@
           '</div>' +
           '<div style="flex:1">' +
             '<div class="suggestion-main">' + item.name + (item.city ? ', ' + item.city : '') + '</div>' +
-            '<div class="suggestion-sub">'  + item.sub  + '</div>' +
+            '<div class="suggestion-sub">' + item.sub + '</div>' +
           '</div>' + badgeHtml;
         div.onclick = function() { selectSuggestion(item); };
         box.appendChild(div);
@@ -417,7 +679,7 @@
           .bindPopup('<b>' + item.name + '</b><br><span style="color:#888;font-size:12px">No reports yet. Be the first!</span>')
           .openPopup();
         markers.push(t);
-        setSelectedStreet({ name: item.name, city: item.city || '', lat: item.lat, lng: item.lng, spots: 0 });
+        setSelectedStreet({ name: item.name, city: item.city || '', lat: item.lat, lng: item.lng, spots: 0, total_spots: 10 });
         buildList([{ name: item.name, city: item.city, spots: -1, lat: item.lat, lng: item.lng }]);
       }
     }
@@ -432,7 +694,7 @@
         return { type:'known', name:s.name, city:s.city,
           sub: s.city + ' · ' + (s.spots > 0 ? s.spots + ' spots open' : 'Full'),
           status:s.status, spots:s.spots, lat:s.lat, lng:s.lng, id:s.id,
-          last_updated: s.last_updated };
+          total_spots:s.total_spots, last_updated:s.last_updated };
       });
 
       showSuggestions(local.concat([
@@ -463,11 +725,9 @@
                   lat:parseFloat(r.lat), lng:parseFloat(r.lon) };
               })
               .filter(function(r) {
-                // Remove duplicates from Nominatim results
                 var key = r.name.toLowerCase() + '|' + r.city.toLowerCase();
                 if (seen.includes(key)) return false;
                 seen.push(key);
-                // Remove duplicates already shown from local matches
                 return !local.some(function(l) {
                   return l.name.toLowerCase() === r.name.toLowerCase() &&
                          l.city.toLowerCase() === r.city.toLowerCase();
@@ -507,7 +767,7 @@
       });
       if (local) { selectSuggestion(Object.assign({ type:'known' }, local)); return; }
       fetch('https://nominatim.openstreetmap.org/search?format=json&q='
-        + encodeURIComponent(query + ', Massachusetts') + '&limit=1')
+        + encodeURIComponent(query + ', United States') + '&limit=1')
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data[0]) {
@@ -517,8 +777,11 @@
         });
     }
 
-    // ── Start the app ──
+    // ── Start app ──
     loadStreets();
+
+    // ── Auto refresh every 60 seconds ──
+    setInterval(loadStreets, 60000);
   </script>
 
 </body>
