@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ParkSpot – Greater Boston, MA</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; }
+
+    .topbar {
+      background: #1a1a2e; color: white;
+      padding: 14px 20px; display: flex; align-items: center; gap: 16px;
+    }
+    .topbar h1 { font-size: 20px; }
+    .topbar p  { font-size: 13px; color: #aaa; }
+
+    .searchbar {
+      background: #fff; padding: 12px 20px;
+      display: flex; gap: 10px; border-bottom: 1px solid #ddd;
+    }
+    .search-wrapper { position: relative; flex: 1; }
+    .search-wrapper input {
+      width: 100%; padding: 9px 14px;
+      border: 1px solid #ccc; border-radius: 8px; font-size: 14px;
+    }
+    .search-wrapper input:focus { outline: none; border-color: #22c55e; }
+
+    .suggestions {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #fff; border: 1px solid #ddd; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 9999;
+      max-height: 260px; overflow-y: auto; display: none;
+    }
+    .suggestions.visible { display: block; }
+    .suggestion-item {
+      padding: 10px 14px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid #f5f5f5; font-size: 13px;
+    }
+    .suggestion-item:last-child { border-bottom: none; }
+    .suggestion-item:hover, .suggestion-item.active { background: #f0fdf4; }
+    .suggestion-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; flex-shrink: 0;
+    }
+    .suggestion-icon.known   { background: #dcfce7; color: #15803d; }
+    .suggestion-icon.search  { background: #eff6ff; color: #1d4ed8; }
+    .suggestion-icon.loading { background: #f3f4f6; color: #9ca3af; }
+    .suggestion-main { font-weight: 500; color: #111; }
+    .suggestion-sub  { font-size: 11px; color: #888; margin-top: 1px; }
+    .suggestion-badge {
+      margin-left: auto; font-size: 10px;
+      padding: 2px 7px; border-radius: 10px;
+      font-weight: 500; flex-shrink: 0;
+    }
+    .badge-green  { background: #dcfce7; color: #15803d; }
+    .badge-yellow { background: #fef9c3; color: #b45309; }
+    .badge-red    { background: #fee2e2; color: #b91c1c; }
+    .badge-new    { background: #eff6ff; color: #1d4ed8; }
+
+    .searchbar button {
+      padding: 9px 20px; background: #22c55e; color: white;
+      border: none; border-radius: 8px; font-size: 14px; cursor: pointer;
+    }
+    .searchbar button:hover { background: #16a34a; }
+
+    .main { display: flex; height: calc(100vh - 110px); }
+
+    #map { flex: 1; }
+
+    .sidebar {
+      width: 280px; background: #fff;
+      border-left: 1px solid #ddd; display: flex; flex-direction: column;
+    }
+    .sidebar h2 {
+      padding: 14px 16px; font-size: 14px;
+      color: #555; border-bottom: 1px solid #eee;
+    }
+    .street-list { flex: 1; overflow-y: auto; }
+    .street-item {
+      padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
+      cursor: pointer; display: flex; align-items: center; gap: 10px;
+    }
+    .street-item:hover { background: #f9f9f9; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .dot.green  { background: #22c55e; }
+    .dot.yellow { background: #fbbf24; }
+    .dot.red    { background: #ef4444; }
+    .dot.unknown { background: #94a3b8; }
+    .street-name { font-size: 13px; font-weight: 500; }
+    .street-info { font-size: 12px; color: #888; }
+
+    .report-area { padding: 14px 16px; border-top: 1px solid #eee; }
+    .report-area p { font-size: 12px; color: #777; margin-bottom: 8px; }
+    .btn-free {
+      width: 100%; padding: 9px; background: #dcfce7;
+      color: #15803d; border: 1px solid #86efac;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; margin-bottom: 6px;
+    }
+    .btn-taken {
+      width: 100%; padding: 9px; background: #fee2e2;
+      color: #b91c1c; border: 1px solid #fca5a5;
+      border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+    }
+    .btn-free:hover  { background: #bbf7d0; }
+    .btn-taken:hover { background: #fecaca; }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div>
+      <h1>ParkSpot</h1>
+      <p>Greater Boston, MA</p>
+    </div>
+  </div>
+
+  <div class="searchbar">
+    <div class="search-wrapper">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="Type any street name, e.g. Ferry St..."
+        autocomplete="off"
+      />
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <button onclick="searchStreet()">Find Spots</button>
+  </div>
+
+  <div class="main">
+    <div id="map"></div>
+    <div class="sidebar">
+      <h2>Nearby streets</h2>
+      <div class="street-list" id="street-list"></div>
+      <div class="report-area">
+        <p>See a free spot? Report it!</p>
+        <button class="btn-free"  onclick="report('free')">+ I just freed a spot</button>
+        <button class="btn-taken" onclick="report('taken')">Spot just got taken</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var map = L.map('map').setView([42.3801, -71.0589], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var streets = [
+      { name:"Ferry St",       city:"Everett",    status:"green",  spots:8, lat:42.4090, lng:-71.0530 },
+      { name:"Elm St",         city:"Everett",    status:"green",  spots:5, lat:42.4075, lng:-71.0520 },
+      { name:"Broadway",       city:"Everett",    status:"yellow", spots:2, lat:42.4100, lng:-71.0555 },
+      { name:"Nichols St",     city:"Everett",    status:"red",    spots:0, lat:42.4065, lng:-71.0545 },
+      { name:"Newbury St",     city:"Boston",     status:"red",    spots:0, lat:42.3494, lng:-71.0838 },
+      { name:"Hanover St",     city:"Boston",     status:"yellow", spots:3, lat:42.3637, lng:-71.0545 },
+      { name:"Mass Ave",       city:"Cambridge",  status:"green",  spots:6, lat:42.3656, lng:-71.1045 },
+      { name:"Broadway",       city:"Somerville", status:"green",  spots:4, lat:42.3876, lng:-71.0995 },
+      { name:"Washington St",  city:"Malden",     status:"green",  spots:5, lat:42.4265, lng:-71.0662 },
+      { name:"Central Ave",    city:"Malden",     status:"yellow", spots:2, lat:42.4251, lng:-71.0701 },
+    ];
+
+    var colors  = { green:"#22c55e", yellow:"#fbbf24", red:"#ef4444" };
+    var markers = [];
+    var nominatimTimer = null;
+    var activeIndex = -1;
+
+    function drawMarkers(list) {
+      markers.forEach(function(m) { map.removeLayer(m); });
+      markers = [];
+      list.forEach(function(s) {
+        var circle = L.circleMarker([s.lat, s.lng], {
+          radius: 14, fillColor: colors[s.status] || "#94a3b8",
+          color: "#fff", weight: 2, fillOpacity: 0.9
+        }).addTo(map);
+        circle.bindPopup(
+          "<b>" + s.name + (s.city ? ", " + s.city : "") + "</b><br>" +
+          (s.spots > 0 ? s.spots + " spots available" : "No spots — full!")
+        );
+        markers.push(circle);
+      });
+    }
+
+    function buildList(list) {
+      var el = document.getElementById('street-list');
+      el.innerHTML = '';
+      if (list.length === 0) {
+        el.innerHTML = '<p style="padding:16px;color:#888;font-size:13px;">No results found.</p>';
+        return;
+      }
+      list.forEach(function(s) {
+        var item = document.createElement('div');
+        item.className = 'street-item';
+        item.innerHTML =
+          '<div class="dot ' + (s.status || 'unknown') + '"></div>' +
+          '<div>' +
+            '<div class="street-name">' + s.name + (s.city ? ', ' + s.city : '') + '</div>' +
+            '<div class="street-info">' +
+              (s.spots > 0 ? s.spots + ' spots open' : s.spots === 0 ? 'Full' : 'No reports yet') +
+            '</div>' +
+          '</div>';
+        item.onclick = function() { map.setView([s.lat, s.lng], 17); };
+        el.appendChild(item);
+      });
+    }
+
+    drawMarkers(streets);
+    buildList(streets);
+
+    function showSuggestions(items) {
+      var box = document.getElementById('suggestions');
+      box.innerHTML = '';
+      activeIndex = -1;
+      if (items.length === 0) { box.classList.remove('visible'); return; }
+      items.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'suggestion-item';
+        var badgeHtml = '';
+        if (item.type === 'known') {
+          var bc = item.status === 'green' ? 'badge-green' : item.status === 'yellow' ? 'badge-yellow' : 'badge-red';
+          var bt = item.status === 'green' ? item.spots + ' open' : item.status === 'yellow' ? item.spots + ' left' : 'Full';
+          badgeHtml = '<span class="suggestion-badge ' + bc + '">' + bt + '</span>';
+        } else {
+          badgeHtml = '<span class="suggestion-badge badge-new">Search</span>';
+        }
+        div.innerHTML =
+          '<div class="suggestion-icon ' + item.type + '">' +
+            (item.type === 'known' ? '📍' : item.type === 'loading' ? '…' : '🔍') +
+          '</div>' +
+          '<div style="flex:1">' +
+            '<div class="suggestion-main">' + item.name + (item.city ? ', ' + item.city : '') + '</div>' +
+            '<div class="suggestion-sub">'  + item.sub  + '</div>' +
+          '</div>' + badgeHtml;
+        div.onclick = function() { selectSuggestion(item); };
+        box.appendChild(div);
+      });
+      box.classList.add('visible');
+    }
+
+    function hideSuggestions() {
+      document.getElementById('suggestions').classList.remove('visible');
+      activeIndex = -1;
+    }
+
+    function selectSuggestion(item) {
+      document.getElementById('search-input').value = item.name + (item.city ? ', ' + item.city : '');
+      hideSuggestions();
+      map.setView([item.lat, item.lng], 17);
+      if (item.type === 'known') {
+        buildList([item]);
+      } else {
+        var t = L.marker([item.lat, item.lng]).addTo(map)
+          .bindPopup('<b>' + item.name + '</b><br><span style="color:#888;font-size:12px">No reports yet. Be the first!</span>')
+          .openPopup();
+        markers.push(t);
+        buildList([{ name:item.name, city:item.city, spots:-1, lat:item.lat, lng:item.lng }]);
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('input', function() {
+      var query = this.value.trim();
+      if (query.length < 2) { hideSuggestions(); drawMarkers(streets); buildList(streets); return; }
+
+      var local = streets.filter(function(s) {
+        return (s.name + ' ' + s.city).toLowerCase().includes(query.toLowerCase());
+      }).map(function(s) {
+        return { type:'known', name:s.name, city:s.city,
+          sub: s.city + ' · ' + (s.spots > 0 ? s.spots + ' spots open' : 'Full'),
+          status:s.status, spots:s.spots, lat:s.lat, lng:s.lng };
+      });
+
+      showSuggestions(local.concat([
+        { type:'loading', name:'Searching more streets...', sub:'Looking up "' + query + '"', lat:0, lng:0 }
+      ]));
+
+      clearTimeout(nominatimTimer);
+      nominatimTimer = setTimeout(function() {
+        var url = 'https://nominatim.openstreetmap.org/search?format=json'
+                + '&q=' + encodeURIComponent(query + ', Massachusetts')
+                + '&limit=5&addressdetails=1';
+        fetch(url)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var nom = data
+              .filter(function(r) {
+                return r.class === 'highway' || r.addresstype === 'road' ||
+                       r.type === 'residential' || r.type === 'tertiary' ||
+                       r.type === 'secondary'   || r.type === 'primary';
+              })
+              .map(function(r) {
+                var sName = r.address.road || r.display_name.split(',')[0];
+                var city  = r.address.city || r.address.town || r.address.village || 'MA';
+                return { type:'search', name:sName, city:city,
+                  sub: city + ', Massachusetts', lat:parseFloat(r.lat), lng:parseFloat(r.lon) };
+              })
+              .filter(function(r) {
+                return !local.some(function(l) {
+                  return l.name.toLowerCase() === r.name.toLowerCase() &&
+                         l.city.toLowerCase() === r.city.toLowerCase();
+                });
+              });
+            showSuggestions(local.concat(nom));
+          })
+          .catch(function() { showSuggestions(local); });
+      }, 400);
+    });
+
+    document.getElementById('search-input').addEventListener('keydown', function(e) {
+      var items = document.querySelectorAll('.suggestion-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        items.forEach(function(el, i) { el.classList.toggle('active', i === activeIndex); });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        items.forEach(function(el, i) { el.classList.toggle('active', i === activeIndex); });
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0 && items[activeIndex]) { items[activeIndex].click(); }
+        else { searchStreet(); }
+      } else if (e.key === 'Escape') { hideSuggestions(); }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!document.getElementById('search-input').contains(e.target)) hideSuggestions();
+    });
+
+    function searchStreet() {
+      var query = document.getElementById('search-input').value.trim();
+      if (!query) return;
+      var local = streets.find(function(s) {
+        return (s.name + ' ' + s.city).toLowerCase().includes(query.toLowerCase());
+      });
+      if (local) { selectSuggestion(Object.assign({ type:'known' }, local)); return; }
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query + ', Massachusetts') + '&limit=1')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data[0]) {
+            selectSuggestion({ type:'search', name:query, city:'', lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon) });
+          } else { alert('Street not found. Try "Ferry St, Everett" or "Newbury St, Boston"'); }
+        });
+    }
+
+    function report(type) {
+      alert(type === 'free' ? 'Thanks! Marked as available. (Live database coming soon!)'
+                            : 'Thanks! Marked as taken. (Live database coming soon!)');
+    }
+  </script>
+
+</body>
+</html>
