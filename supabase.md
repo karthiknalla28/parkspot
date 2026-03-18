@@ -1,34 +1,33 @@
 # Supabase Configuration
 
 ## Project Details
-- **Project URL:** https://tvuwlxmgpauubuitqgbd.supabase.co
 - **Region:** US East (North Virginia)
-- **Project ID:** tvuwlxmgpauubuitqgbd
+- **Project URL:** stored in app.js
 
 ## API Keys
-- **Publishable key:** sb_publishable_Z70iI8GKpj_2PU5T8BiaOQ_DvGXBg43
-- **Secret key:** (never share this — find it in Supabase dashboard only)
+- **Keys are stored in `app.js`** — do not commit real keys to public repos
+- For production, move keys to environment variables
 
 ## Table: streets
 
-| Column | Type | Default |
-|---|---|---|
-| id | int8 | auto |
-| name | text | null |
-| city | text | null |
-| lat | float8 | null |
-| lng | float8 | null |
-| spots | int4 | null |
-| total_spots | int4 | 10 |
-| status | text | null |
-| confidence | int4 | 1 |
-| confirmations | int4 | 0 |
-| comment | text | null |
-| last_updated | timestamptz | null |
+| Column | Type | Default | Description |
+|---|---|---|---|
+| id | int8 | auto | Primary key |
+| name | text | null | Street name |
+| city | text | null | City name |
+| lat | float8 | null | Latitude coordinate |
+| lng | float8 | null | Longitude coordinate |
+| spots | int4 | null | Current free spots |
+| total_spots | int4 | 10 | Total spots on street |
+| status | text | null | green / yellow / red / expired |
+| confidence | int4 | 1 | Trust score 1–10 |
+| confirmations | int4 | 0 | Number of confirmations |
+| comment | text | null | Optional community note |
+| last_updated | timestamptz | null | Timestamp of last report |
 
 ## Recreate Table (SQL)
 Run this in Supabase SQL Editor to recreate the table from scratch:
-
+```sql
 CREATE TABLE streets (
   id            bigserial PRIMARY KEY,
   name          text,
@@ -43,35 +42,23 @@ CREATE TABLE streets (
   comment       text,
   last_updated  timestamptz
 );
+```
+
+## Security Notes
+- RLS (Row Level Security) is DISABLED — required for community reporting
+- Never commit real API keys to public GitHub repos
+- Publishable key is safe for client-side use but keep it out of version control
+
+## Free Tier Limits
+| Resource | Limit |
+|---|---|
+| Database rows | 50,000 |
+| Storage | 500 MB |
+| Bandwidth | 2 GB/month |
+| API requests | Unlimited |
 
 ## Important Notes
-- RLS (Row Level Security) is DISABLED — required for community reporting
-- Free tier limits: 50,000 rows, 500MB storage, 2GB bandwidth/month
-- Auto-expire: spots older than 20 mins reset to expired in app.js
+- Auto-expire: spots older than 20 mins reset to expired in `app.js`
+- All writes go through the Supabase REST API via the JS SDK
+- No backend server needed — frontend talks directly to Supabase
 ```
-
----
-
-**3 — Add `supabase.md` to `.gitignore`**
-
-Wait — actually **don't push `supabase.md` to GitHub** because it contains your API keys. Create a `.gitignore` file in your project folder:
-
-1. Create new file → name it `.gitignore`
-2. Add this content:
-```
-supabase.md
-```
-
-This tells GitHub to ignore that file so your keys stay private.
-
----
-
-**Your project folder should now look like this:**
-```
-parkspot/
-├── index.html      ← push to GitHub ✅
-├── style.css       ← push to GitHub ✅
-├── app.js          ← push to GitHub ✅
-├── README.md       ← push to GitHub ✅
-├── .gitignore      ← push to GitHub ✅
-└── supabase.md     ← keep LOCAL only 🔒
