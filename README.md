@@ -129,9 +129,4 @@ This is a personal learning project for now. Once Phase 5 is complete and the ap
 
 ---
 
-*Last updated: Phase 4 complete — clean 3-file structure, full community reporting live*
-```
 
-Commit message:
-```
-Update README - Phase 4 complete, clean code structure
