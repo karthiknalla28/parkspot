@@ -191,3 +191,151 @@ body { font-family:Arial, sans-serif; background:#f4f4f4; }
   pointer-events:none; white-space:nowrap;
 }
 .toast.show { opacity:1; }
+
+/* ── MOBILE LAYOUT ── */
+@media (max-width: 768px) {
+
+  /* Stack everything vertically */
+  .main {
+    flex-direction: column;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* Map fills full screen */
+  #map {
+    position: absolute;
+    top: 0; left: 0;
+    right: 0; bottom: 0;
+    height: 100% !important;
+    z-index: 1;
+  }
+
+  /* Sidebar becomes a bottom sheet */
+  .sidebar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    height: auto;
+    max-height: 55vh;
+    border-left: none;
+    border-top: 1px solid #ddd;
+    border-radius: 16px 16px 0 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+    transition: max-height 0.3s ease;
+  }
+
+  /* Drag handle at top of bottom sheet */
+  .sidebar::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+  }
+
+  /* Collapsed state — shows just the street list peek */
+  .sidebar.collapsed {
+    max-height: 120px;
+    overflow: hidden;
+  }
+
+  /* Expanded state — shows full panel */
+  .sidebar.expanded {
+    max-height: 85vh;
+  }
+
+  /* Bigger touch targets for street items */
+  .street-item {
+    padding: 14px 16px;
+    min-height: 56px;
+  }
+
+  /* Bigger dots */
+  .dot {
+    width: 14px;
+    height: 14px;
+    margin-top: 4px;
+  }
+
+  /* Bigger text */
+  .s-name { font-size: 14px; }
+  .s-info { font-size: 13px; }
+  .s-time { font-size: 12px; }
+
+  /* Report panel bigger buttons */
+  .btn-free, .btn-taken, .btn-confirm {
+    padding: 14px;
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+
+  /* Bigger free spots number */
+  #free-val { font-size: 48px !important; }
+
+  /* Bigger adjuster buttons */
+  .adj-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 20px !important;
+  }
+
+  /* Search bar — bigger input */
+  .search-wrapper input {
+    padding: 12px 14px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .btn-search {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+
+  /* Top bar slightly bigger */
+  .topbar { padding: 14px 16px; }
+  .topbar h1 { font-size: 20px; }
+
+  /* Report panel takes more height */
+  .report-panel {
+    max-height: none;
+    padding: 12px 16px;
+  }
+
+  /* Sidebar head acts as tap target to expand/collapse */
+  .sidebar-head {
+    padding: 12px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-head::after {
+    content: '▲';
+    font-size: 10px;
+    color: #aaa;
+    transition: transform 0.3s;
+  }
+
+  .sidebar.collapsed .sidebar-head::after {
+    transform: rotate(180deg);
+  }
+
+  /* Street list scrollable */
+  .street-list {
+    max-height: 30vh;
+  }
+}
+
+/* ── VERY SMALL PHONES (iPhone SE etc) ── */
+@media (max-width: 380px) {
+  .sidebar { max-height: 60vh; }
+  .btn-free, .btn-taken { font-size: 14px; padding: 12px; }
+  #free-val { font-size: 40px !important; }
+}

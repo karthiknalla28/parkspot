@@ -10,7 +10,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const PIN_COLOR = {
-  green:'#22c55e', yellow:'#fbbf24',
+  green:'#22c55e', yellow:'#fbbf24',  
   red:'#ef4444',   expired:'#94a3b8'
 };
 
@@ -93,7 +93,7 @@ function drawMarkers(list) {
         : '')
     );
 
-    circle.on('click', () => openStreet(s));
+    circle.on('click', () => (window.openStreetMobile || openStreet)(s));
     markers.push(circle);
   });
 }
@@ -142,7 +142,7 @@ function buildList(list) {
           ? `<div class="c-bubble">"${s.comment}"</div>`
           : '') +
       `</div>`;
-    div.onclick = () => { map.setView([s.lat, s.lng], 17); openStreet(s); };
+    div.onclick = () => { map.setView([s.lat, s.lng], 17); (window.openStreetMobile || openStreet)(s); };
     el.appendChild(div);
   });
 }
@@ -555,6 +555,38 @@ function searchStreet() {
       else toast('Street not found. Try "Ferry St, Everett"');
     });
 }
+// ── Mobile bottom sheet expand/collapse ──
+function initMobile() {
+  if (window.innerWidth > 768) return;
 
+  const sidebar = document.querySelector('.sidebar');
+  const head    = document.querySelector('.sidebar-head');
+
+  // Start collapsed
+  sidebar.classList.add('collapsed');
+
+  // Tap header to toggle
+  head.addEventListener('click', () => {
+    if (sidebar.classList.contains('collapsed')) {
+      sidebar.classList.remove('collapsed');
+      sidebar.classList.add('expanded');
+    } else {
+      sidebar.classList.remove('expanded');
+      sidebar.classList.add('collapsed');
+    }
+  });
+
+  // Auto expand when a street is selected
+  const origOpenStreet = openStreet;
+  window.openStreetMobile = async function(s) {
+    sidebar.classList.remove('collapsed');
+    sidebar.classList.add('expanded');
+    await origOpenStreet(s);
+  };
+}
+
+// Run on load and on resize
+window.addEventListener('load', initMobile);
+window.addEventListener('resize', initMobile);
 // ── Start ──
 loadStreets();
