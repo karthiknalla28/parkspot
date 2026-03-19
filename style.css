@@ -12,7 +12,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .topbar h1 {
   font-size:22px; font-weight:700; letter-spacing:-0.5px;
   background:linear-gradient(90deg,#fff,#22c55e);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
 }
 .topbar p { font-size:11px; color:rgba(255,255,255,0.5); margin-top:1px; }
 .topbar-right { display:flex; align-items:center; gap:8px; }
@@ -267,44 +267,43 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .search-wrapper input { font-size:16px; }
   .btn-search { padding:10px 14px; }
 
-  /* Map + sidebar container */
   .main {
     flex:1; position:relative;
-    height:0; /* important — lets flex:1 work properly */
-    overflow:hidden;
+    min-height:0; overflow:hidden;
   }
 
-  /* Map fills entire main area */
   #map {
     position:absolute;
     top:0; left:0; right:0; bottom:0;
     z-index:10;
   }
 
+  /* ── Bottom sheet ── */
   .sidebar {
     position:absolute;
     bottom:0; left:0; right:0;
-    width:100%; height:85vh;
     border-left:none;
     border-radius:20px 20px 0 0;
     box-shadow:0 -6px 24px rgba(0,0,0,0.2);
-    z-index:100;
+    z-index:200;
     background:white;
     display:flex; flex-direction:column;
-    transform:translateY(calc(85vh - 56px));
-    transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    max-height:56px;
     overflow:hidden;
+    transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1);
+    width:100%;
   }
 
   .sidebar.expanded {
-    transform:translateY(0);
+    max-height:88vh;
+    overflow-y:auto;
   }
 
   /* Pull handle */
   .sheet-handle {
     display:block;
     width:40px; height:4px; background:#d1d5db;
-    border-radius:2px; margin:10px auto 0;
+    border-radius:2px; margin:8px auto 0;
     flex-shrink:0; cursor:pointer;
   }
 
@@ -314,48 +313,79 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
     cursor:pointer; user-select:none;
     border-bottom:1px solid #f3f4f6;
     background:transparent;
+    display:flex; align-items:center;
+    justify-content:space-between;
+    min-height:40px;
   }
 
-  /* Back button — shown when expanded */
   .btn-back {
     display:block !important;
     background:#1a1a2e; color:white;
     border:none; border-radius:20px;
-    padding:5px 12px; font-size:12px; font-weight:600;
-    cursor:pointer; font-family:inherit;
+    padding:5px 12px; font-size:12px;
+    font-weight:600; cursor:pointer;
+    font-family:inherit;
   }
 
-    .street-list {
+  .street-list {
     max-height:160px;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    flex:none;
+    flex-shrink:0;
+  }
 
   .street-item { padding:14px 16px; }
   .street-item:hover { transform:none; }
   .street-item:active { background:#f0fdf4; }
-
   .dot { width:13px; height:13px; }
   .s-name { font-size:14px; }
   .s-info { font-size:13px; }
 
   .report-panel {
-    max-height:none; padding:14px 16px 32px;
+    max-height:none;
+    padding:14px 16px 32px;
     border-top:1px solid #f3f4f6;
+    flex-shrink:0;
   }
 
   #free-val { font-size:52px !important; }
 
-  .btn-free,.btn-taken {
+  .adj-btn {
+    width:40px !important;
+    height:40px !important;
+    font-size:20px !important;
+  }
+
+  .btn-free, .btn-taken {
     padding:16px; font-size:16px;
     border-radius:14px; margin-bottom:8px;
   }
   .btn-confirm { padding:14px; font-size:14px; }
-  .btn-free:hover,.btn-taken:hover { transform:none; box-shadow:none; }
+  .btn-free:hover, .btn-taken:hover { transform:none; box-shadow:none; }
   .btn-free:active  { opacity:0.85; }
   .btn-taken:active { opacity:0.85; }
 
   .toast { bottom:80px; }
+}
+
+@media (max-width:380px) {
+  #free-val { font-size:44px !important; }
+  .btn-free, .btn-taken { font-size:15px; padding:14px; }
+}
+
+/* ── Leaflet custom ── */
+.leaflet-control-zoom a {
+  border-radius:10px !important;
+  width:32px !important; height:32px !important;
+  line-height:32px !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius:14px !important;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15) !important;
+}
+.leaflet-popup-content {
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;
+  font-size:13px !important; margin:10px 14px !important;
 }
 
 @media (max-width:380px) {

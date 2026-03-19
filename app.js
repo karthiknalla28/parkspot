@@ -69,13 +69,15 @@ function isMobile() {
 // ── Mobile sheet controls ──
 function expandSheet() {
   if (!isMobile()) return;
-  document.getElementById('sidebar').classList.add('expanded');
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('expanded');
 }
 
 function collapseSheet() {
   if (!isMobile()) return;
-  document.getElementById('sidebar').classList.remove('expanded');
-  map.invalidateSize();
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.remove('expanded');
+  setTimeout(() => map.invalidateSize(), 400);
 }
 
 // ── Draw markers ──
@@ -393,8 +395,19 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => {
   const handle = document.getElementById('sheet-handle');
   const head   = document.getElementById('sidebar-head');
-  handle?.addEventListener('click', expandSheet);
-  head?.addEventListener('click',   expandSheet);
+
+  // Only expand — not collapse — when tapping handle/head
+  // Collapse only via the ← Map button
+  handle?.addEventListener('click', e => {
+    e.stopPropagation();
+    expandSheet();
+  });
+
+  head?.addEventListener('click', e => {
+    // Don't expand if they clicked the back button
+    if (e.target.id === 'btn-back' || e.target.closest('#btn-back')) return;
+    expandSheet();
+  });
 });
 
 // ── Autocomplete ──
