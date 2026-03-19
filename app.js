@@ -10,7 +10,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const PIN_COLOR = {
-  green:'#22c55e', yellow:'#fbbf24',  
+  green:'#22c55e', yellow:'#fbbf24',
   red:'#ef4444',   expired:'#94a3b8'
 };
 
@@ -62,7 +62,23 @@ function barColor(pct) {
   return pct === 0 ? '#ef4444' : pct <= 30 ? '#fbbf24' : '#22c55e';
 }
 
-// ── Draw map markers ──
+function isMobile() {
+  return window.innerWidth <= 768;
+}
+
+// ── Mobile sheet controls ──
+function expandSheet() {
+  if (!isMobile()) return;
+  document.getElementById('sidebar').classList.add('expanded');
+}
+
+function collapseSheet() {
+  if (!isMobile()) return;
+  document.getElementById('sidebar').classList.remove('expanded');
+  map.invalidateSize();
+}
+
+// ── Draw markers ──
 function drawMarkers(list) {
   markers.forEach(m => map.removeLayer(m));
   markers = [];
@@ -82,18 +98,15 @@ function drawMarkers(list) {
       (exp
         ? '<span style="color:#94a3b8">Expired — no fresh data</span>'
         : `<b style="color:${color}">${free} of ${total} spots free</b>`) +
-      (s.confidence
-        ? `<br><span style="color:#3b82f6;font-size:11px">Confidence: ${s.confidence}/10</span>`
-        : '') +
-      (s.comment
-        ? `<br><i style="color:#888;font-size:11px">"${s.comment}"</i>`
-        : '') +
-      (s.last_updated
-        ? `<br><span style="color:#aaa;font-size:11px">Updated ${timeAgo(s.last_updated)}</span>`
-        : '')
+      (s.confidence ? `<br><span style="color:#3b82f6;font-size:11px">Confidence: ${s.confidence}/10</span>` : '') +
+      (s.comment    ? `<br><i style="color:#888;font-size:11px">"${s.comment}"</i>` : '') +
+      (s.last_updated ? `<br><span style="color:#aaa;font-size:11px">Updated ${timeAgo(s.last_updated)}</span>` : '')
     );
 
-    circle.on('click', () => (window.openStreetMobile || openStreet)(s));
+    circle.on('click', () => {
+      if (isMobile()) expandSheet();
+      openStreet(s);
+    });
     markers.push(circle);
   });
 }
@@ -117,32 +130,23 @@ function buildList(list) {
       `<div style="flex:1">` +
         `<div class="s-name">${s.name}${s.city ? ', '+s.city : ''}</div>` +
         `<div class="s-info">${
-          exp         ? 'Expired — no fresh data' :
-          free > 0    ? `${free} of ${total} spots free` :
-          s.spots===0 ? 'No reports yet' : 'Full'
+          exp      ? 'Expired — no fresh data' :
+          free > 0 ? `${free} of ${total} spots free` :
+          s.spots === 0 ? 'No reports yet' : 'Full'
         }</div>` +
-        (s.last_updated
-          ? `<div class="s-time">${timeAgo(s.last_updated)}</div>`
-          : '') +
-        `<div class="fresh-bar">
-          <div class="fresh-fill ${freshClass(s.last_updated)}"
-            style="width:${freshPct(s.last_updated)}%">
-          </div>
-        </div>` +
+        (s.last_updated ? `<div class="s-time">${timeAgo(s.last_updated)}</div>` : '') +
+        `<div class="fresh-bar"><div class="fresh-fill ${freshClass(s.last_updated)}" style="width:${freshPct(s.last_updated)}%"></div></div>` +
         (s.confidence && !exp
-          ? `<div class="conf-row">
-               <span>Confidence</span>
-               <span>${s.confidence}/10</span>
-             </div>
-             <div class="conf-bar">
-               <div class="conf-fill" style="width:${s.confidence*10}%"></div>
-             </div>`
+          ? `<div class="conf-row"><span>Confidence</span><span>${s.confidence}/10</span></div>
+             <div class="conf-bar"><div class="conf-fill" style="width:${s.confidence*10}%"></div></div>`
           : '') +
-        (s.comment
-          ? `<div class="c-bubble">"${s.comment}"</div>`
-          : '') +
+        (s.comment ? `<div class="c-bubble">"${s.comment}"</div>` : '') +
       `</div>`;
-    div.onclick = () => { map.setView([s.lat, s.lng], 17); (window.openStreetMobile || openStreet)(s); };
+    div.onclick = () => {
+      map.setView([s.lat, s.lng], 17);
+      if (isMobile()) expandSheet();
+      openStreet(s);
+    };
     el.appendChild(div);
   });
 }
@@ -152,7 +156,7 @@ async function openStreet(s) {
   document.getElementById('no-street-msg').style.display         = 'none';
   document.getElementById('street-selected-panel').style.display = 'block';
   document.getElementById('selected-label').textContent =
-    `${s.name}${s.city ? ', '+s.city : ''}`;
+    `📍 ${s.name}${s.city ? ', '+s.city : ''}`;
 
   if (s.id) {
     const { data, error } = await db
@@ -175,9 +179,8 @@ async function openStreet(s) {
     freshRow.style.display = 'flex';
     const pct   = freshPct(s.last_updated);
     const cls   = freshClass(s.last_updated);
-    const color = cls==='fresh' ? '#22c55e' : cls==='aging' ? '#fbbf24' :
-                  cls==='stale' ? '#f97316' : '#94a3b8';
-    document.getElementById('fresh-indicator').style.width      = pct + '%';
+    const color = cls==='fresh'?'#22c55e':cls==='aging'?'#fbbf24':cls==='stale'?'#f97316':'#94a3b8';
+    document.getElementById('fresh-indicator').style.width      = pct+'%';
     document.getElementById('fresh-indicator').style.background = color;
     document.getElementById('fresh-label').textContent          = timeAgo(s.last_updated);
   } else {
@@ -188,37 +191,41 @@ async function openStreet(s) {
   document.getElementById('btn-confirm').style.display =
     (s.last_updated && !isExpired(s.last_updated)) ? 'block' : 'none';
   document.getElementById('edit-total-row').style.display = 'none';
+
+  // On mobile scroll report panel into view
+  if (isMobile()) {
+    setTimeout(() => {
+      document.getElementById('report-panel')
+        ?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }, 400);
+  }
 }
 
-// ── Adjust free spots counter ──
+// ── Adjust free spots ──
 function adjustFree(delta) {
   const total = parseInt(document.getElementById('total-val').textContent) || 10;
   freeSpots = Math.max(0, Math.min(total, freeSpots + delta));
   document.getElementById('free-val').textContent = freeSpots;
 }
 
-// ── Toggle edit total ──
+// ── Edit total ──
 function editTotal() {
   const row = document.getElementById('edit-total-row');
   row.style.display = row.style.display === 'none' ? 'block' : 'none';
 }
 
-// ── Adjust total in edit row ──
 function adjustTotal(delta) {
   const cur = parseInt(document.getElementById('total-edit-val').textContent);
   document.getElementById('total-edit-val').textContent = Math.max(1, cur + delta);
 }
 
-// ── Save total ──
 async function saveTotal() {
   if (!selectedStreet?.id) { toast('Select a saved street first!'); return; }
   const val = parseInt(document.getElementById('total-edit-val').textContent);
   selectedStreet.total_spots = val;
   document.getElementById('total-val').textContent = val;
-
   const { error } = await db.from('streets')
     .update({ total_spots: val }).eq('id', selectedStreet.id);
-
   if (error) { toast('Save failed: ' + error.message); return; }
   document.getElementById('edit-total-row').style.display = 'none';
   toast(`Total spots saved as ${val}`);
@@ -255,7 +262,7 @@ async function loadStreets() {
   buildList(streets);
 }
 
-// ── Report a spot ──
+// ── Report ──
 async function report(type) {
   if (!selectedStreet) {
     toast('Click a street on the map or sidebar first!');
@@ -280,13 +287,13 @@ async function report(type) {
     }
 
     if (existing) {
-      const currentSpots = parseInt(existing.spots)       || 0;
-      const totalSpots   = parseInt(existing.total_spots) || 10;
-      const newSpots     = type === 'free'
-        ? Math.min(totalSpots, freeSpots > currentSpots ? freeSpots : currentSpots + 1)
-        : Math.max(0, currentSpots - 1);
-      const newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
-      const newConf   = Math.min(10, (existing.confidence || 1) + 1);
+      const cur      = parseInt(existing.spots)       || 0;
+      const total    = parseInt(existing.total_spots) || 10;
+      const newSpots = type === 'free'
+        ? Math.min(total, freeSpots > cur ? freeSpots : cur + 1)
+        : Math.max(0, cur - 1);
+      const newStatus = newSpots===0?'red':newSpots<=2?'yellow':'green';
+      const newConf   = Math.min(10, (existing.confidence||1) + 1);
 
       const { error } = await db.from('streets').update({
         spots:         newSpots,
@@ -298,7 +305,7 @@ async function report(type) {
       }).eq('id', existing.id);
 
       if (error) { toast('Save failed: ' + error.message); return; }
-      toast(type === 'free' ? 'Spot reported as free!' : 'Spot marked as taken!');
+      toast(type==='free' ? 'Spot reported as free!' : 'Spot marked as taken!');
 
     } else {
       const { error } = await db.from('streets').insert({
@@ -306,9 +313,9 @@ async function report(type) {
         city:          selectedStreet.city    || '',
         lat:           selectedStreet.lat,
         lng:           selectedStreet.lng,
-        spots:         type === 'free' ? Math.max(1, freeSpots) : 0,
+        spots:         type==='free' ? Math.max(1, freeSpots) : 0,
         total_spots:   10,
-        status:        type === 'free' ? 'green' : 'red',
+        status:        type==='free' ? 'green' : 'red',
         confidence:    1,
         confirmations: 0,
         comment:       comment || '',
@@ -316,7 +323,7 @@ async function report(type) {
       });
 
       if (error) { toast('Save failed: ' + error.message); return; }
-      toast(type === 'free'
+      toast(type==='free'
         ? 'New street added — reported as free!'
         : 'New street added — marked as taken!');
     }
@@ -336,39 +343,32 @@ async function report(type) {
   }
 }
 
-// ── Confirm still accurate ──
+// ── Confirm ──
 async function confirmReport() {
   if (!selectedStreet?.id) { toast('Select a street first!'); return; }
-
-  const { data, error: fetchErr } = await db.from('streets')
+  const { data, error:fe } = await db.from('streets')
     .select('*').eq('id', selectedStreet.id).single();
-  if (fetchErr || !data) return;
-
-  const newConf  = (data.confirmations || 0) + 1;
-  const newScore = newConf % 3 === 0
-    ? Math.min(10, (data.confidence || 1) + 1) : data.confidence;
-
+  if (fe || !data) return;
+  const newConf  = (data.confirmations||0) + 1;
+  const newScore = newConf%3===0 ? Math.min(10,(data.confidence||1)+1) : data.confidence;
   const { error } = await db.from('streets').update({
     confirmations: newConf,
     confidence:    newScore,
     last_updated:  new Date().toISOString()
   }).eq('id', selectedStreet.id);
-
   if (error) { toast('Save failed: ' + error.message); return; }
   toast('Thanks! Confidence score went up.');
   await loadStreets();
 }
 
-// ── Manual refresh ──
+// ── Refresh ──
 async function manualRefresh() {
   ['refresh-icon','section-refresh-icon'].forEach(id => {
     document.getElementById(id)?.classList.add('spinning');
   });
   document.getElementById('refresh-label').textContent = 'Refreshing...';
   document.getElementById('refresh-btn').disabled = true;
-
   await loadStreets();
-
   ['refresh-icon','section-refresh-icon'].forEach(id => {
     document.getElementById(id)?.classList.remove('spinning');
   });
@@ -389,33 +389,29 @@ setInterval(() => {
     ? 'rgba(239,68,68,0.7)' : 'rgba(255,255,255,0.4)';
 }, 1000);
 
+// ── Mobile sheet tap handlers ──
+document.addEventListener('DOMContentLoaded', () => {
+  const handle = document.getElementById('sheet-handle');
+  const head   = document.getElementById('sidebar-head');
+  handle?.addEventListener('click', expandSheet);
+  head?.addEventListener('click',   expandSheet);
+});
+
 // ── Autocomplete ──
 function showSuggestions(items) {
   const box = document.getElementById('suggestions');
   box.innerHTML = '';
   sugIndex = -1;
   if (!items.length) { box.classList.remove('open'); return; }
-
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = 'sug-item';
-    let badge = item.type === 'known'
-      ? `<span class="sug-badge ${
-          item.status==='green'  ? 'bg-green'  :
-          item.status==='yellow' ? 'bg-yellow' : 'bg-red'}">${
-          item.status==='green'  ? item.spots+' open' :
-          item.status==='yellow' ? item.spots+' left' : 'Full'
-        }</span>`
+    const badge = item.type==='known'
+      ? `<span class="sug-badge ${item.status==='green'?'bg-green':item.status==='yellow'?'bg-yellow':'bg-red'}">${item.status==='green'?item.spots+' open':item.status==='yellow'?item.spots+' left':'Full'}</span>`
       : `<span class="sug-badge bg-blue">Search</span>`;
-
     div.innerHTML =
-      `<div class="sug-icon ${item.type}">
-        ${item.type==='known' ? '📍' : item.type==='loading' ? '…' : '🔍'}
-      </div>` +
-      `<div style="flex:1">
-        <div class="sug-main">${item.name}${item.city ? ', '+item.city : ''}</div>
-        <div class="sug-sub">${item.sub}</div>
-      </div>${badge}`;
+      `<div class="sug-icon ${item.type}">${item.type==='known'?'📍':item.type==='loading'?'…':'🔍'}</div>` +
+      `<div style="flex:1"><div class="sug-main">${item.name}${item.city?', '+item.city:''}</div><div class="sug-sub">${item.sub}</div></div>${badge}`;
     div.onclick = () => pickSuggestion(item);
     box.appendChild(div);
   });
@@ -431,35 +427,26 @@ function pickSuggestion(item) {
   document.getElementById('search-input').value =
     item.name + (item.city ? ', '+item.city : '');
   hideSuggestions();
+  document.getElementById('search-input').blur();
   map.setView([item.lat, item.lng], 17);
 
-  // Use mobile-aware open function if on mobile
-  const openFn = window.openStreetMobile || openStreet;
+  if (isMobile()) expandSheet();
 
   if (item.type === 'known') {
     buildList([item]);
-    openFn(item);
+    openStreet(item);
   } else {
     const m = L.marker([item.lat, item.lng]).addTo(map)
-      .bindPopup(`<b>${item.name}</b><br>
-        <span style="color:#888;font-size:12px">No reports yet. Be the first!</span>`)
+      .bindPopup(`<b>${item.name}</b><br><span style="color:#888;font-size:12px">No reports yet. Be the first!</span>`)
       .openPopup();
     markers.push(m);
-    openFn({
-      name:        item.name,
-      city:        item.city || '',
-      lat:         item.lat,
-      lng:         item.lng,
-      spots:       0,
-      total_spots: 10
+    openStreet({
+      name:item.name, city:item.city||'',
+      lat:item.lat, lng:item.lng, spots:0, total_spots:10
     });
     buildList([{
-      name:   item.name,
-      city:   item.city,
-      spots:  0,
-      status: 'unknown',
-      lat:    item.lat,
-      lng:    item.lng
+      name:item.name, city:item.city,
+      spots:0, status:'unknown', lat:item.lat, lng:item.lng
     }]);
   }
 }
@@ -469,47 +456,37 @@ document.getElementById('search-input').addEventListener('input', function() {
   if (q.length < 2) {
     hideSuggestions(); drawMarkers(streets); buildList(streets); return;
   }
-
   const local = streets
     .filter(s => `${s.name||''} ${s.city||''}`.toLowerCase().includes(q.toLowerCase()))
     .map(s => ({
       type:'known', name:s.name, city:s.city||'',
-      sub:`${s.city||''} · ${
-        s.status==='expired' ? 'Expired' :
-        s.spots>0 ? s.spots+' open' : 'Full'}`,
-      status:s.status, spots:s.spots,
-      lat:s.lat, lng:s.lng, id:s.id,
-      total_spots:s.total_spots, comment:s.comment
+      sub:`${s.city||''} · ${s.status==='expired'?'Expired':s.spots>0?s.spots+' open':'Full'}`,
+      status:s.status, spots:s.spots, lat:s.lat, lng:s.lng,
+      id:s.id, total_spots:s.total_spots, comment:s.comment
     }));
 
   showSuggestions([...local, {
-    type:'loading',
-    name:'Searching more streets...',
-    sub:`Looking up "${q}"`,
-    lat:0, lng:0
+    type:'loading', name:'Searching more streets...',
+    sub:`Looking up "${q}"`, lat:0, lng:0
   }]);
 
   clearTimeout(nomTimer);
   nomTimer = setTimeout(() => {
-    fetch(`https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(q+', United States')}&limit=5&addressdetails=1`)
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${
+      encodeURIComponent(q+', United States')}&limit=5&addressdetails=1`)
       .then(r => r.json())
       .then(data => {
         const seen = new Set();
         const nom = data
-          .filter(r =>
-            r.class==='highway' || r.addresstype==='road' ||
+          .filter(r => r.class==='highway'||r.addresstype==='road'||
             ['residential','tertiary','secondary','primary'].includes(r.type))
           .map(r => ({
             type:'search',
-            name: r.address.road || r.display_name.split(',')[0],
-            city: r.address.city || r.address.town || r.address.village || '',
-            sub:  [
-              r.address.city||r.address.town||r.address.village||'',
-              r.address.state||''
-            ].filter(Boolean).join(', '),
-            lat: parseFloat(r.lat),
-            lng: parseFloat(r.lon)
+            name: r.address.road||r.display_name.split(',')[0],
+            city: r.address.city||r.address.town||r.address.village||'',
+            sub:  [r.address.city||r.address.town||r.address.village||'',
+                   r.address.state||''].filter(Boolean).join(', '),
+            lat:parseFloat(r.lat), lng:parseFloat(r.lon)
           }))
           .filter(r => {
             const key = `${r.name}|${r.city}`.toLowerCase();
@@ -536,8 +513,7 @@ document.getElementById('search-input').addEventListener('keydown', function(e) 
     sugIndex = Math.max(sugIndex-1, 0);
     items.forEach((el,i) => el.classList.toggle('active', i===sugIndex));
   } else if (e.key==='Enter') {
-    sugIndex>=0 && items[sugIndex]
-      ? items[sugIndex].click() : searchStreet();
+    sugIndex>=0&&items[sugIndex] ? items[sugIndex].click() : searchStreet();
   } else if (e.key==='Escape') { hideSuggestions(); }
 });
 
@@ -549,75 +525,21 @@ document.addEventListener('click', e => {
 function searchStreet() {
   const q = document.getElementById('search-input').value.trim();
   if (!q) return;
-
-  // Blur keyboard on mobile after search
   document.getElementById('search-input').blur();
-
   const local = streets.find(s =>
     `${s.name} ${s.city}`.toLowerCase().includes(q.toLowerCase()));
   if (local) { pickSuggestion({type:'known', ...local}); return; }
-
-  fetch(`https://nominatim.openstreetmap.org/search?format=json` +
-    `&q=${encodeURIComponent(q+', United States')}&limit=1`)
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${
+    encodeURIComponent(q+', United States')}&limit=1`)
     .then(r => r.json())
     .then(data => {
       if (data[0]) pickSuggestion({
         type:'search', name:q, city:'',
-        lat:parseFloat(data[0].lat),
-        lng:parseFloat(data[0].lon)
+        lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)
       });
       else toast('Street not found. Try "Ferry St, Everett"');
     });
 }
-// ── Mobile bottom sheet expand/collapse ──
-// ── Mobile bottom sheet ──
-function initMobile() {
-  if (window.innerWidth > 768) return;
 
-  const sidebar = document.querySelector('.sidebar');
-  const handle  = document.getElementById('sidebar-handle');
-  const head    = document.getElementById('sidebar-head');
-
-  // Start in peek state
-  sidebar.classList.remove('expanded');
-
-  // Tap handle or header to expand
-  function expandSheet() {
-    sidebar.classList.add('expanded');
-  }
-
-  handle?.addEventListener('click', expandSheet);
-  head?.addEventListener('click', expandSheet);
-
-  // Auto expand when any street is opened
-  window.openStreetMobile = async function(s) {
-    // Expand sheet first so user sees it moving
-    sidebar.classList.add('expanded');
-    // Then load the street data
-    await openStreet(s);
-    // Scroll report panel into view after data loads
-    setTimeout(() => {
-      const panel = document.querySelector('.report-panel');
-      if (panel) panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
-    }, 500);
-  };
-}
-
-// Collapse back to peek state
-function collapseSheet() {
-  const sidebar = document.querySelector('.sidebar');
-  sidebar?.classList.remove('expanded');
-  // Scroll map back to center
-  map.invalidateSize();
-}
-
-window.addEventListener('load', initMobile);
-window.addEventListener('resize', () => {
-  if (window.innerWidth <= 768) initMobile();
-});
-
-// Run on load and on resize
-window.addEventListener('load', initMobile);
-window.addEventListener('resize', initMobile);
 // ── Start ──
 loadStreets();
