@@ -556,34 +556,50 @@ function searchStreet() {
     });
 }
 // ── Mobile bottom sheet expand/collapse ──
+// ── Mobile bottom sheet ──
 function initMobile() {
   if (window.innerWidth > 768) return;
 
   const sidebar = document.querySelector('.sidebar');
-  const head    = document.querySelector('.sidebar-head');
+  const handle  = document.getElementById('sidebar-handle');
+  const head    = document.getElementById('sidebar-head');
 
-  // Start collapsed
-  sidebar.classList.add('collapsed');
+  // Start in peek state
+  sidebar.classList.remove('expanded');
 
-  // Tap header to toggle
-  head.addEventListener('click', () => {
-    if (sidebar.classList.contains('collapsed')) {
-      sidebar.classList.remove('collapsed');
-      sidebar.classList.add('expanded');
-    } else {
-      sidebar.classList.remove('expanded');
-      sidebar.classList.add('collapsed');
-    }
-  });
-
-  // Auto expand when a street is selected
-  const origOpenStreet = openStreet;
-  window.openStreetMobile = async function(s) {
-    sidebar.classList.remove('collapsed');
+  // Tap handle or header to expand
+  function expandSheet() {
     sidebar.classList.add('expanded');
-    await origOpenStreet(s);
+  }
+
+  handle?.addEventListener('click', expandSheet);
+  head?.addEventListener('click', expandSheet);
+
+  // Auto expand when street is tapped
+  const origOpen = openStreet;
+  window.openStreetMobile = async function(s) {
+    sidebar.classList.add('expanded');
+    await origOpen(s);
+    // Scroll report panel into view
+    setTimeout(() => {
+      document.querySelector('.report-panel')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 400);
   };
 }
+
+// Collapse back to peek state
+function collapseSheet() {
+  const sidebar = document.querySelector('.sidebar');
+  sidebar?.classList.remove('expanded');
+  // Scroll map back to center
+  map.invalidateSize();
+}
+
+window.addEventListener('load', initMobile);
+window.addEventListener('resize', () => {
+  if (window.innerWidth <= 768) initMobile();
+});
 
 // Run on load and on resize
 window.addEventListener('load', initMobile);

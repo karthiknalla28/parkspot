@@ -46,7 +46,13 @@
   <div class="main">
     <div id="map"></div>
     <div class="sidebar">
-      <div class="sidebar-head">Nearby streets</div>
+      <div class="sidebar-handle" id="sidebar-handle"></div>
+      <div class="sidebar-head" id="sidebar-head">
+        <span>Nearby streets</span>
+        <button class="back-to-map" onclick="collapseSheet()">
+          ← Back to map
+        </button>
+      </div>
       <div class="street-list" id="street-list">
         <p style="padding:14px;color:#aaa;font-size:13px;">Loading...</p>
       </div>
