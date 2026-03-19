@@ -433,23 +433,33 @@ function pickSuggestion(item) {
   hideSuggestions();
   map.setView([item.lat, item.lng], 17);
 
+  // Use mobile-aware open function if on mobile
+  const openFn = window.openStreetMobile || openStreet;
+
   if (item.type === 'known') {
     buildList([item]);
-    openStreet(item);
+    openFn(item);
   } else {
     const m = L.marker([item.lat, item.lng]).addTo(map)
       .bindPopup(`<b>${item.name}</b><br>
         <span style="color:#888;font-size:12px">No reports yet. Be the first!</span>`)
       .openPopup();
     markers.push(m);
-    openStreet({
-      name:item.name, city:item.city||'',
-      lat:item.lat,   lng:item.lng,
-      spots:0,        total_spots:10
+    openFn({
+      name:        item.name,
+      city:        item.city || '',
+      lat:         item.lat,
+      lng:         item.lng,
+      spots:       0,
+      total_spots: 10
     });
     buildList([{
-      name:item.name, city:item.city,
-      spots:0, status:'unknown', lat:item.lat, lng:item.lng
+      name:   item.name,
+      city:   item.city,
+      spots:  0,
+      status: 'unknown',
+      lat:    item.lat,
+      lng:    item.lng
     }]);
   }
 }
@@ -539,6 +549,10 @@ document.addEventListener('click', e => {
 function searchStreet() {
   const q = document.getElementById('search-input').value.trim();
   if (!q) return;
+
+  // Blur keyboard on mobile after search
+  document.getElementById('search-input').blur();
+
   const local = streets.find(s =>
     `${s.name} ${s.city}`.toLowerCase().includes(q.toLowerCase()));
   if (local) { pickSuggestion({type:'known', ...local}); return; }
@@ -575,16 +589,17 @@ function initMobile() {
   handle?.addEventListener('click', expandSheet);
   head?.addEventListener('click', expandSheet);
 
-  // Auto expand when street is tapped
-  const origOpen = openStreet;
+  // Auto expand when any street is opened
   window.openStreetMobile = async function(s) {
+    // Expand sheet first so user sees it moving
     sidebar.classList.add('expanded');
-    await origOpen(s);
-    // Scroll report panel into view
+    // Then load the street data
+    await openStreet(s);
+    // Scroll report panel into view after data loads
     setTimeout(() => {
-      document.querySelector('.report-panel')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 400);
+      const panel = document.querySelector('.report-panel');
+      if (panel) panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }, 500);
   };
 }
 
