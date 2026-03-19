@@ -281,24 +281,21 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
     z-index:10;
   }
 
-  /* Bottom sheet sits above map */
   .sidebar {
     position:absolute;
     bottom:0; left:0; right:0;
-    width:100%; height:90vh;
+    width:100%; height:85vh;
     border-left:none;
     border-radius:20px 20px 0 0;
     box-shadow:0 -6px 24px rgba(0,0,0,0.2);
     z-index:100;
     background:white;
     display:flex; flex-direction:column;
-    /* Default: peeking — only handle + header visible (~64px) */
-    transform:translateY(calc(90vh - 64px));
+    transform:translateY(calc(85vh - 56px));
     transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
     overflow:hidden;
   }
 
-  /* Expanded — full sheet visible */
   .sidebar.expanded {
     transform:translateY(0);
   }
@@ -321,18 +318,18 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 
   /* Back button — shown when expanded */
   .btn-back {
-    display:block;
+    display:block !important;
     background:#1a1a2e; color:white;
     border:none; border-radius:20px;
     padding:5px 12px; font-size:12px; font-weight:600;
     cursor:pointer; font-family:inherit;
-    float:right; margin-top:-2px;
   }
 
-  .street-list {
-    flex:1; overflow-y:auto;
+    .street-list {
+    max-height:160px;
+    overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-  }
+    flex:none;
 
   .street-item { padding:14px 16px; }
   .street-item:hover { transform:none; }
