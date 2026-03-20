@@ -14,13 +14,14 @@ const PIN_COLOR = {
   red:'#ef4444',   expired:'#94a3b8'
 };
 
-let streets        = [];
-let markers        = [];
-let selectedStreet = null;
-let freeSpots      = 0;
-let nomTimer       = null;
-let sugIndex       = -1;
-let countdown      = 60;
+let streets          = [];
+let markers          = [];
+let selectedStreet   = null;
+let freeSpots        = 0;
+let userAdjustedFree = false;
+let nomTimer         = null;
+let sugIndex         = -1;
+let countdown        = 60;
 
 // ── Normalize street names for smart matching ──
 function normalize(name) {
@@ -88,14 +89,12 @@ function isMobile() {
 // ── Mobile sheet controls ──
 function expandSheet() {
   if (!isMobile()) return;
-  const sidebar = document.getElementById('sidebar');
-  sidebar.classList.add('expanded');
+  document.getElementById('sidebar').classList.add('expanded');
 }
 
 function collapseSheet() {
   if (!isMobile()) return;
-  const sidebar = document.getElementById('sidebar');
-  sidebar.classList.remove('expanded');
+  document.getElementById('sidebar').classList.remove('expanded');
   setTimeout(() => map.invalidateSize(), 400);
 }
 
@@ -197,7 +196,7 @@ async function openStreet(s) {
   document.getElementById('selected-label').textContent =
     `📍 ${s.name}${s.city ? ', '+s.city : ''}`;
 
-  // Fetch freshest data if street exists in DB
+  // Fetch freshest data if exists in DB
   if (s.id) {
     const { data, error } = await db
       .from('streets').select('*').eq('id', s.id).single();
@@ -209,7 +208,11 @@ async function openStreet(s) {
   const total = Math.max(1, parseInt(s.total_spots) || 10);
   const free  = Math.max(0, parseInt(s.spots)       || 0);
 
-  freeSpots = free;
+  // Sync all free spot tracking variables
+  freeSpots            = free;
+  userAdjustedFree     = false;
+  window.dbFreeSpots   = free;
+
   document.getElementById('free-val').textContent       = free;
   document.getElementById('total-val').textContent      = total;
   document.getElementById('total-edit-val').textContent = total;
@@ -229,7 +232,7 @@ async function openStreet(s) {
     freshRow.style.display = 'none';
   }
 
-  document.getElementById('comment-input').value    = s.comment || '';
+  document.getElementById('comment-input').value = s.comment || '';
   document.getElementById('btn-confirm').style.display =
     (s.last_updated && !isExpired(s.last_updated)) ? 'block' : 'none';
   document.getElementById('edit-total-row').style.display = 'none';
@@ -242,14 +245,15 @@ async function openStreet(s) {
   }
 }
 
-// ── Adjust free spots ──
+// ── Adjust free spots counter ──
 function adjustFree(delta) {
   const total = parseInt(document.getElementById('total-val').textContent) || 10;
   freeSpots = Math.max(0, Math.min(total, freeSpots + delta));
+  userAdjustedFree = true;
   document.getElementById('free-val').textContent = freeSpots;
 }
 
-// ── Edit total ──
+// ── Edit total spots ──
 function editTotal() {
   const row = document.getElementById('edit-total-row');
   row.style.display = row.style.display === 'none' ? 'block' : 'none';
@@ -272,7 +276,7 @@ async function saveTotal() {
   toast(`Total spots saved as ${val}`);
 }
 
-// ── Load streets ──
+// ── Load streets from Supabase ──
 async function loadStreets() {
   const { data, error } = await db.from('streets').select('*').order('name');
   if (error) {
@@ -331,14 +335,14 @@ async function report(type) {
   try {
     let existing = null;
 
-    // First try by ID (most reliable)
+    // First try fetch by ID
     if (selectedStreet.id) {
       const { data } = await db.from('streets')
         .select('*').eq('id', selectedStreet.id).single();
       existing = data;
     }
 
-    // If no ID, do smart name matching against all streets
+    // Fallback — smart name matching
     if (!existing) {
       const { data: allStreets } = await db.from('streets').select('*');
       if (allStreets) {
@@ -350,8 +354,6 @@ async function report(type) {
                             s.city.toLowerCase().trim() === searchCity;
           return nameMatch && cityMatch;
         }) || null;
-
-        // Found by name match — update selectedStreet with real ID
         if (existing) {
           selectedStreet = { ...selectedStreet, id: existing.id };
         }
@@ -360,11 +362,16 @@ async function report(type) {
 
     if (existing) {
       // ── Update existing street ──
-      const cur      = parseInt(existing.spots)       || 0;
-      const total    = parseInt(existing.total_spots) || 10;
+      const cur   = parseInt(existing.spots)       || 0;
+      const total = parseInt(existing.total_spots) || 10;
+
+      // Key fix:
+      // If user pressed +/− use their value (freeSpots)
+      // If user clicked button directly just add/subtract 1
       const newSpots = type === 'free'
-        ? Math.min(total, freeSpots > cur ? freeSpots : cur + 1)
+        ? Math.min(total, userAdjustedFree ? freeSpots : (window.dbFreeSpots ?? cur) + 1)
         : Math.max(0, cur - 1);
+
       const newStatus = newSpots===0 ? 'red' : newSpots<=2 ? 'yellow' : 'green';
       const newConf   = Math.min(10, (existing.confidence || 1) + 1);
 
@@ -378,16 +385,24 @@ async function report(type) {
       }).eq('id', existing.id);
 
       if (error) { toast('Save failed: ' + error.message); return; }
+
+      // Sync display to saved value
+      freeSpots            = newSpots;
+      userAdjustedFree     = false;
+      window.dbFreeSpots   = newSpots;
+      document.getElementById('free-val').textContent = newSpots;
       toast(type==='free' ? 'Spot reported as free!' : 'Spot marked as taken!');
 
     } else {
       // ── Insert new street ──
+      const savedSpots = type==='free' ? Math.max(1, freeSpots) : 0;
+
       const { error } = await db.from('streets').insert({
         name:          selectedStreet.name,
         city:          selectedStreet.city    || '',
         lat:           selectedStreet.lat,
         lng:           selectedStreet.lng,
-        spots:         type==='free' ? Math.max(1, freeSpots) : 0,
+        spots:         savedSpots,
         total_spots:   10,
         status:        type==='free' ? 'green' : 'red',
         confidence:    1,
@@ -397,6 +412,12 @@ async function report(type) {
       });
 
       if (error) { toast('Save failed: ' + error.message); return; }
+
+      // Sync display to saved value
+      freeSpots            = savedSpots;
+      userAdjustedFree     = false;
+      window.dbFreeSpots   = savedSpots;
+      document.getElementById('free-val').textContent = savedSpots;
       toast(type==='free'
         ? 'New street added — reported as free!'
         : 'New street added — marked as taken!');
@@ -407,8 +428,7 @@ async function report(type) {
     // Re-open street so panel stays in sync
     if (selectedStreet) {
       const updated = streets.find(s =>
-        s.name === selectedStreet.name && s.city === selectedStreet.city
-      );
+        s.name === selectedStreet.name && s.city === selectedStreet.city);
       if (updated) openStreet(updated);
     }
 
@@ -428,7 +448,8 @@ async function confirmReport() {
   if (fe || !data) return;
   const newConf  = (data.confirmations || 0) + 1;
   const newScore = newConf % 3 === 0
-    ? Math.min(10, (data.confidence || 1) + 1) : data.confidence;
+    ? Math.min(10, (data.confidence || 1) + 1)
+    : data.confidence;
   const { error } = await db.from('streets').update({
     confirmations: newConf,
     confidence:    newScore,
@@ -507,7 +528,9 @@ function showSuggestions(items) {
         ${item.type==='known' ? '📍' : item.type==='loading' ? '…' : '🔍'}
       </div>` +
       `<div style="flex:1">
-        <div class="sug-main">${item.name}${item.city ? ', '+item.city : ''}</div>
+        <div class="sug-main">
+          ${item.name}${item.city ? ', '+item.city : ''}
+        </div>
         <div class="sug-sub">${item.sub}</div>
       </div>${badge}`;
     div.onclick = () => pickSuggestion(item);
@@ -534,16 +557,13 @@ function pickSuggestion(item) {
     buildList([item]);
     openStreet(item);
   } else {
-    // Smart match — check if street already exists in DB
+    // Smart match — check if already in DB
     const existing = findExistingStreet(item.name, item.city);
-
     if (existing) {
-      // Already in database — use existing data
       buildList([existing]);
       openStreet(existing);
       toast('Found existing data for ' + existing.name + '!');
     } else {
-      // Genuinely new street
       const m = L.marker([item.lat, item.lng]).addTo(map)
         .bindPopup(
           `<b>${item.name}</b><br>
@@ -580,19 +600,19 @@ document.getElementById('search-input').addEventListener('input', function() {
   const local = streets
     .filter(s => `${s.name||''} ${s.city||''}`.toLowerCase().includes(q.toLowerCase()))
     .map(s => ({
-      type:   'known',
-      name:   s.name,
-      city:   s.city || '',
-      sub:    `${s.city||''} · ${
+      type:        'known',
+      name:        s.name,
+      city:        s.city || '',
+      sub:         `${s.city||''} · ${
         s.status==='expired' ? 'Expired' :
         s.spots>0 ? s.spots+' open' : 'Full'}`,
-      status: s.status,
-      spots:  s.spots,
-      lat:    s.lat,
-      lng:    s.lng,
-      id:     s.id,
-      total_spots:  s.total_spots,
-      comment:      s.comment
+      status:      s.status,
+      spots:       s.spots,
+      lat:         s.lat,
+      lng:         s.lng,
+      id:          s.id,
+      total_spots: s.total_spots,
+      comment:     s.comment
     }));
 
   showSuggestions([...local, {
@@ -666,11 +686,9 @@ function searchStreet() {
   const q = document.getElementById('search-input').value.trim();
   if (!q) return;
   document.getElementById('search-input').blur();
-
   const local = streets.find(s =>
     `${s.name} ${s.city}`.toLowerCase().includes(q.toLowerCase()));
   if (local) { pickSuggestion({type:'known', ...local}); return; }
-
   fetch(`https://nominatim.openstreetmap.org/search?format=json` +
     `&q=${encodeURIComponent(q+', United States')}&limit=1`)
     .then(r => r.json())
