@@ -252,6 +252,60 @@ function adjustFree(delta) {
   userAdjustedFree = true;
   document.getElementById('free-val').textContent = freeSpots;
 }
+// ── Save spot count directly ──
+async function saveSpotCount() {
+  if (!selectedStreet) {
+    toast('Select a street first!');
+    return;
+  }
+
+  const total = parseInt(document.getElementById('total-val').textContent) || 10;
+  const newSpots = Math.min(total, Math.max(0, freeSpots));
+  const newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
+
+  try {
+    if (selectedStreet.id) {
+      // Update existing street
+      const { error } = await db.from('streets').update({
+        spots:        newSpots,
+        status:       newStatus,
+        last_updated: new Date().toISOString()
+      }).eq('id', selectedStreet.id);
+
+      if (error) { toast('Save failed: ' + error.message); return; }
+
+    } else {
+      // New street — insert it
+      const { error } = await db.from('streets').insert({
+        name:         selectedStreet.name,
+        city:         selectedStreet.city  || '',
+        lat:          selectedStreet.lat,
+        lng:          selectedStreet.lng,
+        spots:        newSpots,
+        total_spots:  10,
+        status:       newStatus,
+        confidence:   1,
+        confirmations:0,
+        comment:      '',
+        last_updated: new Date().toISOString()
+      });
+
+      if (error) { toast('Save failed: ' + error.message); return; }
+    }
+
+    // Sync display
+    window.dbFreeSpots = newSpots;
+    userAdjustedFree   = false;
+    document.getElementById('free-val').textContent = newSpots;
+
+    toast(`Saved — ${newSpots} spots free on ${selectedStreet.name}!`);
+    await loadStreets();
+
+  } catch(e) {
+    toast('Error: ' + e.message);
+  }
+}
+
 
 // ── Edit total spots ──
 function editTotal() {
@@ -369,7 +423,7 @@ async function report(type) {
       // If user pressed +/− use their value (freeSpots)
       // If user clicked button directly just add/subtract 1
       const newSpots = type === 'free'
-        ? Math.min(total, userAdjustedFree ? freeSpots : (window.dbFreeSpots ?? cur) + 1)
+        ? Math.min(total, cur + 1)
         : Math.max(0, cur - 1);
 
       const newStatus = newSpots===0 ? 'red' : newSpots<=2 ? 'yellow' : 'green';
