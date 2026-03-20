@@ -80,12 +80,21 @@
               <button class="adj-btn" style="width:40px;height:40px;font-size:20px;"
                 onclick="adjustFree(1)">+</button>
             </div>
-            <div style="font-size:11px;color:#aaa;margin-top:8px;">
+<div style="font-size:11px;color:#aaa;margin-top:8px;">
               out of <span id="total-val">10</span> total spots
               <button onclick="editTotal()"
                 style="background:none;border:none;color:#3b82f6;
                 font-size:11px;cursor:pointer;padding:0 4px;">(edit)</button>
             </div>
+            <button onclick="saveSpotCount()"
+              style="margin-top:10px;width:100%;padding:10px;
+              background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+              color:white;border:none;border-radius:10px;
+              font-size:13px;font-weight:600;cursor:pointer;
+              font-family:inherit;">
+              Save spot count
+            </button>
+          </div>
             <!-- Save spots button -->
             <button onclick="saveSpotCount()"
               style="margin-top:10px;width:100%;padding:10px;
