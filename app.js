@@ -369,8 +369,8 @@ async function report(type) {
       // If user pressed +/− use their value (freeSpots)
       // If user clicked button directly just add/subtract 1
       const newSpots = type === 'free'
-        ? Math.min(total, userAdjustedFree ? freeSpots : (window.dbFreeSpots ?? cur) + 1)
-        : Math.max(0, cur - 1);
+      ? Math.min(total, freeSpots + 1)
+      : Math.max(0, freeSpots - 1);
 
       const newStatus = newSpots===0 ? 'red' : newSpots<=2 ? 'yellow' : 'green';
       const newConf   = Math.min(10, (existing.confidence || 1) + 1);
