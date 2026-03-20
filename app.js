@@ -252,6 +252,53 @@ function adjustFree(delta) {
   userAdjustedFree = true;
   document.getElementById('free-val').textContent = freeSpots;
 }
+
+async function saveSpotCount() {
+  if (!selectedStreet) {
+    toast('Select a street first!');
+    return;
+  }
+
+  const total     = parseInt(document.getElementById('total-val').textContent) || 10;
+  const newSpots  = Math.min(total, Math.max(0, freeSpots));
+  const newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
+
+  try {
+    if (selectedStreet.id) {
+      const { error } = await db.from('streets').update({
+        spots:        newSpots,
+        status:       newStatus,
+        last_updated: new Date().toISOString()
+      }).eq('id', selectedStreet.id);
+      if (error) { toast('Save failed: ' + error.message); return; }
+
+    } else {
+      const { error } = await db.from('streets').insert({
+        name:          selectedStreet.name,
+        city:          selectedStreet.city || '',
+        lat:           selectedStreet.lat,
+        lng:           selectedStreet.lng,
+        spots:         newSpots,
+        total_spots:   10,
+        status:        newStatus,
+        confidence:    1,
+        confirmations: 0,
+        comment:       '',
+        last_updated:  new Date().toISOString()
+      });
+      if (error) { toast('Save failed: ' + error.message); return; }
+    }
+
+    window.dbFreeSpots = newSpots;
+    userAdjustedFree   = false;
+    document.getElementById('free-val').textContent = newSpots;
+    toast(`Saved — ${newSpots} spots free on ${selectedStreet.name}!`);
+    await loadStreets();
+
+  } catch(e) {
+    toast('Error: ' + e.message);
+  }
+}
 // ── Save spot count directly ──
 async function saveSpotCount() {
   if (!selectedStreet) {
