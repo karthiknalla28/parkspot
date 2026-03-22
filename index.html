@@ -9,6 +9,7 @@
 </head>
 <body>
 
+  <!-- ── Top bar ── -->
   <div class="topbar">
     <div onclick="manualRefresh()" style="cursor:pointer;" title="Tap to refresh">
       <h1>ParkSpot</h1>
@@ -29,6 +30,7 @@
     </div>
   </div>
 
+  <!-- ── Search bar ── -->
   <div class="searchbar">
     <div class="search-wrapper">
       <input type="text" id="search-input"
@@ -39,55 +41,75 @@
     <button class="btn-search" onclick="searchStreet()">Find Spots</button>
   </div>
 
+  <!-- ── Main ── -->
   <div class="main">
     <div id="map"></div>
 
     <div class="sidebar" id="sidebar">
+
+      <!-- Pull handle (mobile only) -->
       <div class="sheet-handle" id="sheet-handle"></div>
+
+      <!-- Sidebar header -->
       <div class="sidebar-head" id="sidebar-head">
         <span>Nearby streets</span>
         <button class="btn-back" id="btn-back" onclick="collapseSheet()">
           ← Map
         </button>
       </div>
+
+      <!-- Street list -->
       <div class="street-list" id="street-list">
         <p style="padding:14px;color:#aaa;font-size:13px;">Loading...</p>
       </div>
+
+      <!-- Report panel -->
       <div class="report-panel" id="report-panel">
+
         <div class="rp-header">
           <span class="rp-title">Report parking on this street</span>
           <button class="btn-update" onclick="manualRefresh()">
             <span id="section-refresh-icon">↻</span> Update
           </button>
         </div>
+
+        <!-- No street selected -->
         <div id="no-street-msg"
           style="text-align:center;padding:12px 0;color:#aaa;font-size:13px;">
           Tap a street on the map or list above
         </div>
+
+        <!-- Street selected -->
         <div id="street-selected-panel" style="display:none">
+
+          <!-- Selected street name -->
           <div class="selected-label" id="selected-label"></div>
+
+          <!-- Free spots counter -->
           <div style="background:#f8fafc;border:1px solid #e2e8f0;
             border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;">
             <div style="font-size:12px;color:#777;margin-bottom:10px;">
               How many spots are FREE right now?
             </div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:20px;">
-              <button class="adj-btn" style="width:40px;height:40px;font-size:20px;"
+            <div style="display:flex;align-items:center;
+              justify-content:center;gap:20px;">
+              <button class="adj-btn"
+                style="width:40px;height:40px;font-size:20px;"
                 onclick="adjustFree(-1)">−</button>
               <span id="free-val"
                 style="font-size:44px;font-weight:700;color:#1a1a2e;
                 min-width:48px;text-align:center;">0</span>
-              <button class="adj-btn" style="width:40px;height:40px;font-size:20px;"
+              <button class="adj-btn"
+                style="width:40px;height:40px;font-size:20px;"
                 onclick="adjustFree(1)">+</button>
             </div>
-<div style="font-size:11px;color:#aaa;margin-top:8px;">
+            <div style="font-size:11px;color:#aaa;margin-top:8px;">
               out of <span id="total-val">10</span> total spots
               <button onclick="editTotal()"
                 style="background:none;border:none;color:#3b82f6;
                 font-size:11px;cursor:pointer;padding:0 4px;">(edit)</button>
             </div>
-          </div>
-            <!-- Save spots button -->
+            <!-- Save spot count -->
             <button onclick="saveSpotCount()"
               style="margin-top:10px;width:100%;padding:10px;
               background:linear-gradient(135deg,#3b82f6,#1d4ed8);
@@ -97,6 +119,8 @@
               Save spot count
             </button>
           </div>
+
+          <!-- Edit total spots (hidden by default) -->
           <div id="edit-total-row"
             style="display:none;margin-bottom:10px;background:#eff6ff;
             border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;">
@@ -115,18 +139,25 @@
                 font-size:12px;cursor:pointer;font-family:inherit;">Save</button>
             </div>
           </div>
+
+          <!-- Freshness bar -->
           <div id="freshness-row"
             style="display:none;margin-bottom:10px;font-size:11px;
             color:#888;align-items:center;gap:6px;">
             <div style="flex:1;height:3px;background:#f0f0f0;
               border-radius:2px;overflow:hidden;">
-              <div id="fresh-indicator" style="height:100%;border-radius:2px;"></div>
+              <div id="fresh-indicator"
+                style="height:100%;border-radius:2px;"></div>
             </div>
             <span id="fresh-label">just now</span>
           </div>
+
+          <!-- Optional comment -->
           <textarea class="comment-input" id="comment-input"
             placeholder='Optional note, e.g. "near the stop sign"'
             style="margin-bottom:10px;"></textarea>
+
+          <!-- Action buttons -->
           <button class="btn-free" onclick="report('free')">
             + I just freed a spot
           </button>
@@ -136,6 +167,7 @@
           <button class="btn-confirm" id="btn-confirm" onclick="confirmReport()">
             Still accurate? Confirm it
           </button>
+
         </div>
       </div>
     </div>
