@@ -109,7 +109,7 @@ parkspot/
 - [x] Phase 2 — Smart autocomplete search for any US street
 - [x] Phase 3 — Live Supabase database with community reporting
 - [x] Phase 4 — Clean 3-file code structure
-- [ ] Phase 5 — Mobile-friendly layout for use in your car
+- [x] Phase 5 — Mobile-friendly layout for use in your car
 - [ ] Phase 6 — Launch to Everett & Malden community (Nextdoor, Facebook groups)
 - [ ] Phase 7 — User accounts and personal parking history
 - [ ] Phase 8 — Push notifications when a spot opens near you
