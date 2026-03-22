@@ -6,12 +6,14 @@ const db = supabase.createClient(SUPA_URL, SUPA_KEY);
 // ── Map ──
 const map = L.map('map').setView([42.3801, -71.0589], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution:'© OpenStreetMap contributors'
+  attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
 const PIN_COLOR = {
-  green:'#22c55e', yellow:'#fbbf24',
-  red:'#ef4444',   expired:'#94a3b8'
+  green:   '#22c55e',
+  yellow:  '#fbbf24',
+  red:     '#ef4444',
+  expired: '#94a3b8'
 };
 
 let streets          = [];
@@ -23,7 +25,7 @@ let nomTimer         = null;
 let sugIndex         = -1;
 let countdown        = 60;
 
-// ── Normalize street names for smart matching ──
+// ── Normalize street names for smart duplicate detection ──
 function normalize(name) {
   return (name || '')
     .toLowerCase().trim()
@@ -42,7 +44,7 @@ function normalize(name) {
     .trim();
 }
 
-// ── Helpers ──
+// ── Toast notification ──
 function toast(msg, ms) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -50,13 +52,14 @@ function toast(msg, ms) {
   setTimeout(() => t.classList.remove('show'), ms || 2500);
 }
 
+// ── Time helpers ──
 function timeAgo(ts) {
   if (!ts) return '';
   const s = Math.floor((Date.now() - new Date(ts)) / 1000);
   if (s < 60)    return 'just now';
-  if (s < 3600)  return Math.floor(s/60) + ' min ago';
-  if (s < 86400) return Math.floor(s/3600) + ' hr ago';
-  return Math.floor(s/86400) + 'd ago';
+  if (s < 3600)  return Math.floor(s / 60) + ' min ago';
+  if (s < 86400) return Math.floor(s / 3600) + ' hr ago';
+  return Math.floor(s / 86400) + 'd ago';
 }
 
 function isExpired(ts) {
@@ -98,7 +101,7 @@ function collapseSheet() {
   setTimeout(() => map.invalidateSize(), 400);
 }
 
-// ── Draw markers ──
+// ── Draw map markers ──
 function drawMarkers(list) {
   markers.forEach(m => map.removeLayer(m));
   markers = [];
@@ -109,12 +112,12 @@ function drawMarkers(list) {
     const exp   = s.status === 'expired';
 
     const circle = L.circleMarker([s.lat, s.lng], {
-      radius:13, fillColor:color, color:'#fff',
-      weight:2, opacity:exp?0.4:1, fillOpacity:exp?0.3:0.9
+      radius: 13, fillColor: color, color: '#fff',
+      weight: 2, opacity: exp ? 0.4 : 1, fillOpacity: exp ? 0.3 : 0.9
     }).addTo(map);
 
     circle.bindPopup(
-      `<b>${s.name}${s.city ? ', '+s.city : ''}</b><br>` +
+      `<b>${s.name}${s.city ? ', ' + s.city : ''}</b><br>` +
       (exp
         ? '<span style="color:#94a3b8">Expired — no fresh data</span>'
         : `<b style="color:${color}">${free} of ${total} spots free</b>`) +
@@ -137,7 +140,7 @@ function drawMarkers(list) {
   });
 }
 
-// ── Build sidebar list ──
+// ── Build sidebar street list ──
 function buildList(list) {
   const el = document.getElementById('street-list');
   if (!list.length) {
@@ -154,31 +157,26 @@ function buildList(list) {
     div.innerHTML =
       `<div class="dot ${s.status || 'unknown'}"></div>` +
       `<div style="flex:1">` +
-        `<div class="s-name">${s.name}${s.city ? ', '+s.city : ''}</div>` +
+        `<div class="s-name">${s.name}${s.city ? ', ' + s.city : ''}</div>` +
         `<div class="s-info">${
           exp         ? 'Expired — no fresh data' :
           free > 0    ? `${free} of ${total} spots free` :
           s.spots===0 ? 'No reports yet' : 'Full'
         }</div>` +
-        (s.last_updated
-          ? `<div class="s-time">${timeAgo(s.last_updated)}</div>`
-          : '') +
+        (s.last_updated ? `<div class="s-time">${timeAgo(s.last_updated)}</div>` : '') +
         `<div class="fresh-bar">
           <div class="fresh-fill ${freshClass(s.last_updated)}"
             style="width:${freshPct(s.last_updated)}%"></div>
         </div>` +
         (s.confidence && !exp
           ? `<div class="conf-row">
-               <span>Confidence</span>
-               <span>${s.confidence}/10</span>
+               <span>Confidence</span><span>${s.confidence}/10</span>
              </div>
              <div class="conf-bar">
-               <div class="conf-fill" style="width:${s.confidence*10}%"></div>
+               <div class="conf-fill" style="width:${s.confidence * 10}%"></div>
              </div>`
           : '') +
-        (s.comment
-          ? `<div class="c-bubble">"${s.comment}"</div>`
-          : '') +
+        (s.comment ? `<div class="c-bubble">"${s.comment}"</div>` : '') +
       `</div>`;
     div.onclick = () => {
       map.setView([s.lat, s.lng], 17);
@@ -194,9 +192,9 @@ async function openStreet(s) {
   document.getElementById('no-street-msg').style.display         = 'none';
   document.getElementById('street-selected-panel').style.display = 'block';
   document.getElementById('selected-label').textContent =
-    `📍 ${s.name}${s.city ? ', '+s.city : ''}`;
+    `📍 ${s.name}${s.city ? ', ' + s.city : ''}`;
 
-  // Fetch freshest data if exists in DB
+  // Always fetch freshest data from DB
   if (s.id) {
     const { data, error } = await db
       .from('streets').select('*').eq('id', s.id).single();
@@ -208,10 +206,9 @@ async function openStreet(s) {
   const total = Math.max(1, parseInt(s.total_spots) || 10);
   const free  = Math.max(0, parseInt(s.spots)       || 0);
 
-  // Sync all free spot tracking variables
-  freeSpots            = free;
-  userAdjustedFree     = false;
-  window.dbFreeSpots   = free;
+  freeSpots          = free;
+  userAdjustedFree   = false;
+  window.dbFreeSpots = free;
 
   document.getElementById('free-val').textContent       = free;
   document.getElementById('total-val').textContent      = total;
@@ -222,9 +219,8 @@ async function openStreet(s) {
     freshRow.style.display = 'flex';
     const pct   = freshPct(s.last_updated);
     const cls   = freshClass(s.last_updated);
-    const color = cls==='fresh' ? '#22c55e'
-                : cls==='aging' ? '#fbbf24'
-                : cls==='stale' ? '#f97316' : '#94a3b8';
+    const color = cls==='fresh' ? '#22c55e' : cls==='aging' ? '#fbbf24' :
+                  cls==='stale' ? '#f97316' : '#94a3b8';
     document.getElementById('fresh-indicator').style.width      = pct + '%';
     document.getElementById('fresh-indicator').style.background = color;
     document.getElementById('fresh-label').textContent          = timeAgo(s.last_updated);
@@ -240,7 +236,7 @@ async function openStreet(s) {
   if (isMobile()) {
     setTimeout(() => {
       document.getElementById('report-panel')
-        ?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 400);
   }
 }
@@ -253,11 +249,9 @@ function adjustFree(delta) {
   document.getElementById('free-val').textContent = freeSpots;
 }
 
+// ── Save spot count button ──
 async function saveSpotCount() {
-  if (!selectedStreet) {
-    toast('Select a street first!');
-    return;
-  }
+  if (!selectedStreet) { toast('Select a street first!'); return; }
 
   const total     = parseInt(document.getElementById('total-val').textContent) || 10;
   const newSpots  = Math.min(total, Math.max(0, freeSpots));
@@ -271,7 +265,6 @@ async function saveSpotCount() {
         last_updated: new Date().toISOString()
       }).eq('id', selectedStreet.id);
       if (error) { toast('Save failed: ' + error.message); return; }
-
     } else {
       const { error } = await db.from('streets').insert({
         name:          selectedStreet.name,
@@ -295,64 +288,8 @@ async function saveSpotCount() {
     toast(`Saved — ${newSpots} spots free on ${selectedStreet.name}!`);
     await loadStreets();
 
-  } catch(e) {
-    toast('Error: ' + e.message);
-  }
+  } catch(e) { toast('Error: ' + e.message); }
 }
-// ── Save spot count directly ──
-async function saveSpotCount() {
-  if (!selectedStreet) {
-    toast('Select a street first!');
-    return;
-  }
-
-  const total = parseInt(document.getElementById('total-val').textContent) || 10;
-  const newSpots = Math.min(total, Math.max(0, freeSpots));
-  const newStatus = newSpots === 0 ? 'red' : newSpots <= 2 ? 'yellow' : 'green';
-
-  try {
-    if (selectedStreet.id) {
-      // Update existing street
-      const { error } = await db.from('streets').update({
-        spots:        newSpots,
-        status:       newStatus,
-        last_updated: new Date().toISOString()
-      }).eq('id', selectedStreet.id);
-
-      if (error) { toast('Save failed: ' + error.message); return; }
-
-    } else {
-      // New street — insert it
-      const { error } = await db.from('streets').insert({
-        name:         selectedStreet.name,
-        city:         selectedStreet.city  || '',
-        lat:          selectedStreet.lat,
-        lng:          selectedStreet.lng,
-        spots:        newSpots,
-        total_spots:  10,
-        status:       newStatus,
-        confidence:   1,
-        confirmations:0,
-        comment:      '',
-        last_updated: new Date().toISOString()
-      });
-
-      if (error) { toast('Save failed: ' + error.message); return; }
-    }
-
-    // Sync display
-    window.dbFreeSpots = newSpots;
-    userAdjustedFree   = false;
-    document.getElementById('free-val').textContent = newSpots;
-
-    toast(`Saved — ${newSpots} spots free on ${selectedStreet.name}!`);
-    await loadStreets();
-
-  } catch(e) {
-    toast('Error: ' + e.message);
-  }
-}
-
 
 // ── Edit total spots ──
 function editTotal() {
@@ -394,11 +331,11 @@ async function loadStreets() {
 
   if (expiredIds.length) {
     await db.from('streets')
-      .update({ spots:0, status:'expired', last_updated:null })
+      .update({ spots: 0, status: 'expired', last_updated: null })
       .in('id', expiredIds);
     data.forEach(s => {
       if (expiredIds.includes(s.id)) {
-        s.spots=0; s.status='expired'; s.last_updated=null;
+        s.spots = 0; s.status = 'expired'; s.last_updated = null;
       }
     });
   }
@@ -436,7 +373,7 @@ async function report(type) {
   try {
     let existing = null;
 
-    // First try fetch by ID
+    // Try fetch by ID first
     if (selectedStreet.id) {
       const { data } = await db.from('streets')
         .select('*').eq('id', selectedStreet.id).single();
@@ -445,34 +382,26 @@ async function report(type) {
 
     // Fallback — smart name matching
     if (!existing) {
-      const { data: allStreets } = await db.from('streets').select('*');
-      if (allStreets) {
-        const searchName = normalize(selectedStreet.name);
-        const searchCity = (selectedStreet.city || '').toLowerCase().trim();
-        existing = allStreets.find(s => {
-          const nameMatch = normalize(s.name) === searchName;
-          const cityMatch = !searchCity || !s.city ||
-                            s.city.toLowerCase().trim() === searchCity;
+      const { data: all } = await db.from('streets').select('*');
+      if (all) {
+        const sName = normalize(selectedStreet.name);
+        const sCity = (selectedStreet.city || '').toLowerCase().trim();
+        existing = all.find(s => {
+          const nameMatch = normalize(s.name) === sName;
+          const cityMatch = !sCity || !s.city ||
+                            s.city.toLowerCase().trim() === sCity;
           return nameMatch && cityMatch;
         }) || null;
-        if (existing) {
-          selectedStreet = { ...selectedStreet, id: existing.id };
-        }
+        if (existing) selectedStreet = { ...selectedStreet, id: existing.id };
       }
     }
 
     if (existing) {
-      // ── Update existing street ──
-      const cur   = parseInt(existing.spots)       || 0;
-      const total = parseInt(existing.total_spots) || 10;
-
-      // Key fix:
-      // If user pressed +/− use their value (freeSpots)
-      // If user clicked button directly just add/subtract 1
+      const cur      = parseInt(existing.spots)       || 0;
+      const total    = parseInt(existing.total_spots) || 10;
       const newSpots = type === 'free'
         ? Math.min(total, cur + 1)
         : Math.max(0, cur - 1);
-
       const newStatus = newSpots===0 ? 'red' : newSpots<=2 ? 'yellow' : 'green';
       const newConf   = Math.min(10, (existing.confidence || 1) + 1);
 
@@ -487,17 +416,12 @@ async function report(type) {
 
       if (error) { toast('Save failed: ' + error.message); return; }
 
-      // Sync display to saved value
-      freeSpots            = newSpots;
-      userAdjustedFree     = false;
-      window.dbFreeSpots   = newSpots;
+      freeSpots = newSpots; userAdjustedFree = false; window.dbFreeSpots = newSpots;
       document.getElementById('free-val').textContent = newSpots;
       toast(type==='free' ? 'Spot reported as free!' : 'Spot marked as taken!');
 
     } else {
-      // ── Insert new street ──
       const savedSpots = type==='free' ? Math.max(1, freeSpots) : 0;
-
       const { error } = await db.from('streets').insert({
         name:          selectedStreet.name,
         city:          selectedStreet.city    || '',
@@ -514,10 +438,7 @@ async function report(type) {
 
       if (error) { toast('Save failed: ' + error.message); return; }
 
-      // Sync display to saved value
-      freeSpots            = savedSpots;
-      userAdjustedFree     = false;
-      window.dbFreeSpots   = savedSpots;
+      freeSpots = savedSpots; userAdjustedFree = false; window.dbFreeSpots = savedSpots;
       document.getElementById('free-val').textContent = savedSpots;
       toast(type==='free'
         ? 'New street added — reported as free!'
@@ -525,8 +446,6 @@ async function report(type) {
     }
 
     await loadStreets();
-
-    // Re-open street so panel stays in sync
     if (selectedStreet) {
       const updated = streets.find(s =>
         s.name === selectedStreet.name && s.city === selectedStreet.city);
@@ -544,13 +463,12 @@ async function report(type) {
 // ── Confirm still accurate ──
 async function confirmReport() {
   if (!selectedStreet?.id) { toast('Select a street first!'); return; }
-  const { data, error:fe } = await db.from('streets')
+  const { data, error: fe } = await db.from('streets')
     .select('*').eq('id', selectedStreet.id).single();
   if (fe || !data) return;
   const newConf  = (data.confirmations || 0) + 1;
   const newScore = newConf % 3 === 0
-    ? Math.min(10, (data.confidence || 1) + 1)
-    : data.confidence;
+    ? Math.min(10, (data.confidence || 1) + 1) : data.confidence;
   const { error } = await db.from('streets').update({
     confirmations: newConf,
     confidence:    newScore,
@@ -563,7 +481,7 @@ async function confirmReport() {
 
 // ── Manual refresh ──
 async function manualRefresh() {
-  ['refresh-icon','section-refresh-icon'].forEach(id => {
+  ['refresh-icon', 'section-refresh-icon'].forEach(id => {
     document.getElementById(id)?.classList.add('spinning');
   });
   document.getElementById('refresh-label').textContent = 'Refreshing...';
@@ -571,7 +489,7 @@ async function manualRefresh() {
 
   await loadStreets();
 
-  ['refresh-icon','section-refresh-icon'].forEach(id => {
+  ['refresh-icon', 'section-refresh-icon'].forEach(id => {
     document.getElementById(id)?.classList.remove('spinning');
   });
   document.getElementById('refresh-label').textContent = 'Refresh';
@@ -581,7 +499,7 @@ async function manualRefresh() {
   toast('Data refreshed!');
 }
 
-// ── Countdown ──
+// ── Auto countdown ──
 setInterval(() => {
   countdown--;
   if (countdown <= 0) { loadStreets(); countdown = 60; }
@@ -595,19 +513,14 @@ setInterval(() => {
 document.addEventListener('DOMContentLoaded', () => {
   const handle = document.getElementById('sheet-handle');
   const head   = document.getElementById('sidebar-head');
-
-  handle?.addEventListener('click', e => {
-    e.stopPropagation();
-    expandSheet();
-  });
-
+  handle?.addEventListener('click', e => { e.stopPropagation(); expandSheet(); });
   head?.addEventListener('click', e => {
-    if (e.target.id==='btn-back' || e.target.closest('#btn-back')) return;
+    if (e.target.id === 'btn-back' || e.target.closest('#btn-back')) return;
     expandSheet();
   });
 });
 
-// ── Autocomplete ──
+// ── Autocomplete suggestions ──
 function showSuggestions(items) {
   const box = document.getElementById('suggestions');
   box.innerHTML = '';
@@ -620,8 +533,8 @@ function showSuggestions(items) {
       ? `<span class="sug-badge ${
           item.status==='green'  ? 'bg-green'  :
           item.status==='yellow' ? 'bg-yellow' : 'bg-red'}">${
-          item.status==='green'  ? item.spots+' open' :
-          item.status==='yellow' ? item.spots+' left' : 'Full'
+          item.status==='green'  ? item.spots + ' open' :
+          item.status==='yellow' ? item.spots + ' left' : 'Full'
         }</span>`
       : `<span class="sug-badge bg-blue">Search</span>`;
     div.innerHTML =
@@ -629,9 +542,7 @@ function showSuggestions(items) {
         ${item.type==='known' ? '📍' : item.type==='loading' ? '…' : '🔍'}
       </div>` +
       `<div style="flex:1">
-        <div class="sug-main">
-          ${item.name}${item.city ? ', '+item.city : ''}
-        </div>
+        <div class="sug-main">${item.name}${item.city ? ', ' + item.city : ''}</div>
         <div class="sug-sub">${item.sub}</div>
       </div>${badge}`;
     div.onclick = () => pickSuggestion(item);
@@ -647,18 +558,16 @@ function hideSuggestions() {
 
 function pickSuggestion(item) {
   document.getElementById('search-input').value =
-    item.name + (item.city ? ', '+item.city : '');
+    item.name + (item.city ? ', ' + item.city : '');
   hideSuggestions();
   document.getElementById('search-input').blur();
   map.setView([item.lat, item.lng], 17);
-
   if (isMobile()) expandSheet();
 
   if (item.type === 'known') {
     buildList([item]);
     openStreet(item);
   } else {
-    // Smart match — check if already in DB
     const existing = findExistingStreet(item.name, item.city);
     if (existing) {
       buildList([existing]);
@@ -666,71 +575,42 @@ function pickSuggestion(item) {
       toast('Found existing data for ' + existing.name + '!');
     } else {
       const m = L.marker([item.lat, item.lng]).addTo(map)
-        .bindPopup(
-          `<b>${item.name}</b><br>
-          <span style="color:#888;font-size:12px">
-          No reports yet. Be the first!</span>`)
+        .bindPopup(`<b>${item.name}</b><br>
+          <span style="color:#888;font-size:12px">No reports yet. Be the first!</span>`)
         .openPopup();
       markers.push(m);
-      openStreet({
-        name:        item.name,
-        city:        item.city || '',
-        lat:         item.lat,
-        lng:         item.lng,
-        spots:       0,
-        total_spots: 10
-      });
-      buildList([{
-        name:   item.name,
-        city:   item.city,
-        spots:  0,
-        status: 'unknown',
-        lat:    item.lat,
-        lng:    item.lng
-      }]);
+      openStreet({ name: item.name, city: item.city || '', lat: item.lat, lng: item.lng, spots: 0, total_spots: 10 });
+      buildList([{ name: item.name, city: item.city, spots: 0, status: 'unknown', lat: item.lat, lng: item.lng }]);
     }
   }
 }
 
 document.getElementById('search-input').addEventListener('input', function() {
   const q = this.value.trim();
-  if (q.length < 2) {
-    hideSuggestions(); drawMarkers(streets); buildList(streets); return;
-  }
+  if (q.length < 2) { hideSuggestions(); drawMarkers(streets); buildList(streets); return; }
 
   const local = streets
     .filter(s => `${s.name||''} ${s.city||''}`.toLowerCase().includes(q.toLowerCase()))
     .map(s => ({
-      type:        'known',
-      name:        s.name,
-      city:        s.city || '',
-      sub:         `${s.city||''} · ${
-        s.status==='expired' ? 'Expired' :
-        s.spots>0 ? s.spots+' open' : 'Full'}`,
-      status:      s.status,
-      spots:       s.spots,
-      lat:         s.lat,
-      lng:         s.lng,
-      id:          s.id,
-      total_spots: s.total_spots,
-      comment:     s.comment
+      type: 'known', name: s.name, city: s.city || '',
+      sub:  `${s.city||''} · ${s.status==='expired' ? 'Expired' : s.spots>0 ? s.spots+' open' : 'Full'}`,
+      status: s.status, spots: s.spots, lat: s.lat, lng: s.lng,
+      id: s.id, total_spots: s.total_spots, comment: s.comment
     }));
 
   showSuggestions([...local, {
-    type: 'loading',
-    name: 'Searching more streets...',
-    sub:  `Looking up "${q}"`,
-    lat:  0, lng: 0
+    type: 'loading', name: 'Searching more streets...',
+    sub: `Looking up "${q}"`, lat: 0, lng: 0
   }]);
 
   clearTimeout(nomTimer);
   nomTimer = setTimeout(() => {
     fetch(`https://nominatim.openstreetmap.org/search?format=json` +
-      `&q=${encodeURIComponent(q+', United States')}&limit=5&addressdetails=1`)
+      `&q=${encodeURIComponent(q + ', United States')}&limit=5&addressdetails=1`)
       .then(r => r.json())
       .then(data => {
         const seen = new Set();
-        const nom  = data
+        const nom = data
           .filter(r =>
             r.class==='highway' || r.addresstype==='road' ||
             ['residential','tertiary','secondary','primary'].includes(r.type))
@@ -738,20 +618,17 @@ document.getElementById('search-input').addEventListener('input', function() {
             type: 'search',
             name: r.address.road || r.display_name.split(',')[0],
             city: r.address.city || r.address.town || r.address.village || '',
-            sub:  [
-              r.address.city || r.address.town || r.address.village || '',
-              r.address.state || ''
-            ].filter(Boolean).join(', '),
-            lat: parseFloat(r.lat),
-            lng: parseFloat(r.lon)
+            sub:  [r.address.city||r.address.town||r.address.village||'', r.address.state||'']
+                    .filter(Boolean).join(', '),
+            lat: parseFloat(r.lat), lng: parseFloat(r.lon)
           }))
           .filter(r => {
             const key = `${r.name}|${r.city}`.toLowerCase();
             if (seen.has(key)) return false;
             seen.add(key);
             return !local.some(l =>
-              l.name.toLowerCase() === r.name.toLowerCase() &&
-              l.city.toLowerCase() === r.city.toLowerCase());
+              l.name.toLowerCase()===r.name.toLowerCase() &&
+              l.city.toLowerCase()===r.city.toLowerCase());
           });
         showSuggestions([...local, ...nom]);
       })
@@ -763,16 +640,14 @@ document.getElementById('search-input').addEventListener('keydown', function(e) 
   const items = document.querySelectorAll('.sug-item');
   if (e.key === 'ArrowDown') {
     e.preventDefault();
-    sugIndex = Math.min(sugIndex+1, items.length-1);
-    items.forEach((el,i) => el.classList.toggle('active', i===sugIndex));
+    sugIndex = Math.min(sugIndex + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === sugIndex));
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
-    sugIndex = Math.max(sugIndex-1, 0);
-    items.forEach((el,i) => el.classList.toggle('active', i===sugIndex));
+    sugIndex = Math.max(sugIndex - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('active', i === sugIndex));
   } else if (e.key === 'Enter') {
-    sugIndex >= 0 && items[sugIndex]
-      ? items[sugIndex].click()
-      : searchStreet();
+    sugIndex >= 0 && items[sugIndex] ? items[sugIndex].click() : searchStreet();
   } else if (e.key === 'Escape') {
     hideSuggestions();
   }
@@ -789,17 +664,14 @@ function searchStreet() {
   document.getElementById('search-input').blur();
   const local = streets.find(s =>
     `${s.name} ${s.city}`.toLowerCase().includes(q.toLowerCase()));
-  if (local) { pickSuggestion({type:'known', ...local}); return; }
+  if (local) { pickSuggestion({ type: 'known', ...local }); return; }
   fetch(`https://nominatim.openstreetmap.org/search?format=json` +
-    `&q=${encodeURIComponent(q+', United States')}&limit=1`)
+    `&q=${encodeURIComponent(q + ', United States')}&limit=1`)
     .then(r => r.json())
     .then(data => {
       if (data[0]) pickSuggestion({
-        type: 'search',
-        name: q,
-        city: '',
-        lat:  parseFloat(data[0].lat),
-        lng:  parseFloat(data[0].lon)
+        type: 'search', name: q, city: '',
+        lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)
       });
       else toast('Street not found. Try "Ferry St, Everett"');
     });
